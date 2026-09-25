@@ -1,0 +1,32 @@
+# Shared model configuration for VACTHBench scenarios.
+#
+# Defaults target the user's OpenAI-compatible proxy:
+#   http://207.56.225.111:8317/v1
+#
+# Override without editing this file:
+#   export VACTHBENCH_MODEL="gpt-4.1"
+#   export VACTHBENCH_OPENAI_BASE_URL="http://207.56.225.111:8317/v1"
+#   export VACTHBENCH_OPENAI_API_KEY="placeholder"
+#   export VACTHBENCH_OPENAI_TIMEOUT="120"
+#   export VACTHBENCH_OPENAI_MAX_RETRIES="2"
+#
+# Note: AutoGen's OpenAIChatCompletionClient uses the Chat Completions API
+# shape. The proxy must expose an OpenAI-compatible /v1/chat/completions route.
+
+model_config:
+  provider: autogen_ext.models.openai.OpenAIChatCompletionClient
+  config:
+    model: ${VACTHBENCH_MODEL:-gpt-5.4}
+    base_url: ${VACTHBENCH_OPENAI_BASE_URL:-http://207.56.225.111:8317/v1}
+    api_key: ${VACTHBENCH_OPENAI_API_KEY:-sk-y8JzlO72f1LH30oyX}
+    timeout: ${VACTHBENCH_OPENAI_TIMEOUT:-600}
+    max_retries: ${VACTHBENCH_OPENAI_MAX_RETRIES:-5}
+    include_name_in_message: false
+    add_name_prefixes: true
+    model_info:
+      vision: false
+      function_calling: true
+      json_output: true
+      family: unknown
+      structured_output: true
+      multiple_system_messages: false

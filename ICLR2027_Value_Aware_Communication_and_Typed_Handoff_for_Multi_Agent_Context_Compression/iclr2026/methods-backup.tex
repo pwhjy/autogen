@@ -1,0 +1,18 @@
+
+\textbf{Region-Aware Encoder.} The fundamental challenge of building fine-grained representations for retrieval lies in balancing local and global information. On the one hand, the model must capture highly detailed regional features based on the background context to ensure accurate interpretation. This process inevitably overlooks much of the image-level information. On the other hand, it must be able to generate global representations with sufficiently rich semantics to support tasks such as Task 4 in Figure~\ref{fig:fgmb-case}b.  This tension gives rise to a natural trade-off between fine-grained regional precision and global semantic completeness.
+
+To address this trade-off, our key insight is to decouple the encoders and use layer-wise information coordination to capture the fine-grained features. As illustrated in Figure~\ref{fig:mainfig}, we introduce a separate Region-Aware Encoder (RAE) in addition to the native vision encoder (referred to as context encoder, CE). RAE is connected to the LLM through an independent projector. This decoupled design is simple yet effective. Unlike previous architectures that share the same projector\citep{lian2025dam,lin2025pam}, our approach can prevent semantic entanglement between the two encoders and ensure that enhancing the RAE's fine-grained understanding ability does not compromise the CE’s global semantic richness. Consequently, LEMUR can improve region-level retrieval even in scenarios that require rich region-agnostic information.
+
+% \citep{langedijk2024decoderlens}
+For capturing detailed regional features, we organize CE and RAE in a layer-wise coordination paradigm. To be specific, firstly, the image background is encoded into contextual vision tokens through CE; Then, for the region of interest, it is first encoded using self-attention in RAE, then refined through a cross-attention module. As shown in Figure~\ref{fig:mainfig}, the query is from the RAE, while the key and value come from the hidden states of the corresponding layer in CE. This process can be formulated as:
+\begin{align}
+h_{\mathrm{RAE}}^{i+1} &= h_{\mathrm{RAE}}^{i} + \alpha \cdot \operatorname{XAttn}\!\left(h_{\mathrm{RAE}}^{i},\, h_{\mathrm{CE}}^{i},\, h_{\mathrm{CE}}^{i}\right)\\
+h_{\mathrm{CE}}^{i+1}  &= h_{\mathrm{CE}}^{i} + \operatorname{Attn}\!\left(h_{\mathrm{CE}}^{i},\, h_{\mathrm{CE}}^{i},\, h_{\mathrm{CE}}^{i}\right)
+\end{align}
+
+% \[
+% \operatorname{XAttn}(Q,K,V) \;=\; \mathrm{Softmax}\!\left(\frac{QK^\top}{\sqrt{d}}\right)V
+% \]
+% These self-attention modules can share the same weights with the CE in order to save parameters. 
+
+where $h_{RAE}^{i}$ denotes the hidden states of RAE on layer $i$, and $\alpha$ denotes a learnable weight parameter. Different from the traditional encoder–decoder architecture, which only uses the encoder’s last-layer hidden states for all the decoder layers, this layer-wise coordination pattern maintains semantic consistency among queries, keys, and values. In this way, we avoid computing cross-attention using queries from an early layer and values from the last layer, which are usually at different representation levels. By progressively attending to the global features from lower to higher layers, the RAE selectively refines its regional representations, thereby achieving fine-grained feature extraction.

@@ -1,0 +1,8 @@
+Task:
+__TASK__
+
+Constraints:
+__CONSTRAINTS__
+
+Gold state:
+__GOLD_STATE__

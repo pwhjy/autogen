@@ -6,6 +6,7 @@ import os
 import pathlib
 import random
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -395,6 +396,8 @@ def run_scenario_natively(work_dir: str, env: Dict[str, str], timeout: int = TAS
     os.chdir(work_dir)
     print("\n\n" + os.getcwd() + "\n===================================================================")
 
+    python_executable = shlex.quote(sys.executable)
+
     # Prepare the run script
     with open(os.path.join("run.sh"), "wt") as f:
         f.write(
@@ -405,7 +408,7 @@ echo "agbench version: {__version__}" > timestamp.txt
 
 # Create and activate the virtual environment
 # This is called in a subprocess, and will not impact the parent
-{sys.executable} -m venv .agbench_venv
+{python_executable} -m venv .agbench_venv
 . .agbench_venv/bin/activate
 
 # Run the global init script if it exists
@@ -422,7 +425,14 @@ fi
 pip install -r requirements.txt
 echo SCENARIO.PY STARTING !#!#
 start_time=$(date +%s)
-timeout --preserve-status --kill-after {timeout  + 30}s {timeout}s python scenario.py
+if command -v timeout >/dev/null 2>&1 ; then
+    timeout --preserve-status --kill-after {timeout  + 30}s {timeout}s python scenario.py
+elif command -v gtimeout >/dev/null 2>&1 ; then
+    gtimeout --preserve-status --kill-after {timeout  + 30}s {timeout}s python scenario.py
+else
+    echo "timeout command unavailable; running scenario.py without external timeout" >&2
+    python scenario.py
+fi
 end_time=$(date +%s)
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
@@ -543,7 +553,14 @@ fi
 pip install -r requirements.txt
 echo SCENARIO.PY STARTING !#!#
 start_time=$(date +%s)
-timeout --preserve-status --kill-after {timeout  + 30}s {timeout}s python scenario.py
+if command -v timeout >/dev/null 2>&1 ; then
+    timeout --preserve-status --kill-after {timeout  + 30}s {timeout}s python scenario.py
+elif command -v gtimeout >/dev/null 2>&1 ; then
+    gtimeout --preserve-status --kill-after {timeout  + 30}s {timeout}s python scenario.py
+else
+    echo "timeout command unavailable; running scenario.py without external timeout" >&2
+    python scenario.py
+fi
 end_time=$(date +%s)
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then

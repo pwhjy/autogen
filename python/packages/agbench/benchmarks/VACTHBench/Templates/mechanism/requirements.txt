@@ -1,0 +1,3 @@
+pyyaml>=6.0
+-e ../../../../../../../autogen-core
+-e ../../../../../../../autogen-agentchat

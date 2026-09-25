@@ -1,0 +1,337 @@
+\documentclass{article} % For LaTeX2e
+\usepackage{iclr2026_conference,times}
+
+% 中文版本建议使用 XeLaTeX 编译。
+\usepackage[UTF8]{ctex}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+% ADD BY LX
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{adjustbox}
+\usepackage{enumitem}
+\setcounter{secnumdepth}{2}
+\usepackage{wrapfig}
+
+\usepackage{pifont}
+\usepackage{amssymb}
+\usepackage{caption}
+\usepackage{graphicx}
+\graphicspath{{../figures/}{figures/}}
+
+\newcommand{\lxcapvs}{\vspace*{-0.8em}}
+\newcommand{\lxtailvs}{\vspace*{-1em}}
+
+% ADD BY LX
+
+\title{VACTH：通过价值感知的类型化状态传递实现高效多智能体工作流}
+
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the \iclrfinalcopy macro remains commented out below.
+% Non-anonymous submissions will be rejected without review.
+
+\author{Antiquus S.~Hippocampus, Natalia Cerebro \& Amelie P. Amygdale \thanks{ Use footnote for providing further information
+about author (webpage, alternative address)---\emph{not} for acknowledging
+funding agencies.  Funding acknowledgements go at the end of the paper.} \\
+Department of Computer Science\\
+Cranberry-Lemon University\\
+Pittsburgh, PA 15213, USA \\
+\texttt{\{hippo,brain,jen\}@cs.cranberry-lemon.edu} \\
+\And
+Ji Q. Ren \& Yevgeny LeNet \\
+Department of Computational Neuroscience \\
+University of the Witwatersrand \\
+Joburg, South Africa \\
+\texttt{\{robot,net\}@wits.ac.za} \\
+\AND
+Coauthor \\
+Affiliation \\
+Address \\
+\texttt{email}
+}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+%\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+大语言模型（LLM）智能体已经在多步工具使用和软件工程任务中表现出很强的能力。已有大量工作关注如何提升智能体在单次运行中的成功率，但实际的多智能体部署往往面临另一类瓶颈：在长交互轨迹上反复交接时，智能体必须在行动前重新阅读消息、工具输出、局部计划、测试反馈和共享记忆。反复进行全上下文推理代价很高，而摘要和检索式记忆又比较脆弱，因为它们常常把事实、假设、过时观察和证据压缩成无法区分的自由文本。我们提出 VACTH，一个将原始多智能体交互蒸馏为类型化、价值感知且可修复共享状态的框架。VACTH 包含两个核心机制：（1）类型化翻译器--路由器流水线，将自由形式轨迹转换为带有来源信息的状态项，并在 token 预算下进行路由；（2）验证引导的修复策略，用于检测缺失或冲突状态，并发起有针对性的 re-ask，而不是重新总结整段对话。我们在 SWE-bench Lite 上评估 VACTH，并将其作为状态传递的可执行压力测试，同时也在受控机制套件上进行诊断。在修正后的官方 SWE-bench Lite 评估中，VACTH-Optimized 解决了 190/300 个实例，而最强基线为 91/300；相对于该基线，VACTH 每个已解决实例的 token 数降低了 36.4\%。机制消融表明，类型化交接、来源感知聚合和目标修复都是必要的：移除类型化交接会使校准后的机制得分从 0.895 降至 0.487。这些结果表明，高效多智能体工作流不仅需要更短的上下文，还需要能够经受交接、验证和修复的可复用类型化状态。
+\end{abstract}
+
+\section{引言}
+基于 LLM 的智能体正在越来越多地被部署为用于编程、工具使用、研究辅助和长程任务执行的协作系统。当前大多数研究强调智能体在新颖、单独任务上的表现：给定一个新问题，智能体进行推理、行动、观察工具反馈，最终产生答案。然而，在实际部署中，瓶颈往往不同。同一个工作流可能包含许多专门化智能体、许多轮交接，以及许多相似任务实例。在这种场景下，系统会反复消耗 token，从消息、工具轨迹、局部计划、本地记忆和 artifact 引用中重建同一份任务状态。
+
+图~\ref{fig:vacth_paradigms} 展示了由此产生的设计空间。全上下文或 ReAct 风格的多智能体执行具有灵活性，但会在不断增长的轨迹上反复调用昂贵推理。摘要、滑动窗口和检索式记忆能够降低可见上下文长度，但它们的输出通常是自由形式文本。这使它们在下游行动时十分脆弱：一个暂定假设可能被写成事实，一个旧测试结果可能在被新结果取代后仍然保持活跃，或者一个智能体观察到的约束可能在下一个智能体的提示中消失。问题不仅在于上下文太长，更在于系统没有保存后续智能体安全行动所需要的\emph{状态}。
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{vacth_paradigm_comparison.png}
+    \caption{多智能体上下文管理范式对比。全上下文智能体执行具有灵活性，但在反复交接时开销很高。文本压缩和检索能够缩短长度，但可能丢失状态语义。VACTH 将交互轨迹蒸馏为类型化、带来源信息的状态，使其可以被复用、路由、合并和修复。}
+    \label{fig:vacth_paradigms}
+\end{figure}
+
+我们提出的问题是：\emph{多智能体系统能否将昂贵的交互轨迹蒸馏为可复用的类型化状态，同时保留足够的信息用于下游验证和修复？} 这一表述不同于普通的上下文压缩。一个有用的交接并不只是更短的 transcript。它应该暴露一个条目究竟是事实、约束、决策、假设、过时观察、开放问题还是证据指针；它应该决定该条目属于私有记忆、共享状态还是外部 artifact 存储；并且当压缩隐藏了阻塞性不确定性时，它应该触发修复。
+
+我们提出 \textbf{VACTH}，即 \textbf{V}alue-\textbf{A}ware \textbf{C}ommunication and \textbf{T}yped \textbf{H}andoff。与可复用自动化系统将交互式智能体轨迹蒸馏为可执行过程的思想类似~\cite{chen2026autorpa}，VACTH 将原始多智能体轨迹蒸馏为类型化共享状态。它首先把自由形式消息和工具输出翻译为带有来源信息的状态项；然后用一个可解释的价值分数进行路由，该分数考虑角色相关性、优先级、时效性、证据、置信度、token 成本和治理风险；最后，它将胶囊合并为共享状态图，并利用验证信号在关键槽位缺失、过时或冲突时发起目标 re-ask。
+
+尽管我们目前最强的可执行评估来自软件修复，但该方法并不是为 SWE 场景专门设计的。在软件工作流中，类型化条目包括失败测试约束、定位假设、补丁决策、工具状态增量和证据指针。在其他领域，同一协议也可以表示用户约束、观察事实、决策、未解决问题、外部证据，以及私有或共享记忆更新。因此，我们使用 SWE-bench Lite~\cite{jimenez2024swebench} 作为状态是否能在交接中存活的压力测试，而不是作为方法边界。
+
+我们的贡献如下：
+\begin{itemize}
+    \item 我们将长程多智能体上下文管理表述为\emph{类型化状态传递}：把原始交互轨迹蒸馏为可复用状态项，并保留其认知状态、来源、可见性和可修复性。
+    \item 我们提出 VACTH，一个包含类型化翻译器--路由器流水线、来源感知状态聚合以及验证引导目标修复的实用框架。
+    \item 我们提供了可执行和机制层面的证据：在修正后的官方评估中，VACTH-Optimized 解决了 190/300 个 SWE-bench Lite 实例；受控消融进一步识别了哪些组件负责保持状态保真度。
+\end{itemize}
+  
+
+\section{相关工作}
+\label{sec:related}
+\textbf{多智能体 LLM 系统中的通信效率与自适应协作。}
+基于 LLM 的多智能体系统已经从 CAMEL \cite{li2023camel}、AutoGen \cite{wu2023autogen}、MetaGPT \cite{hong2024metagpt} 和 ChatDev \cite{qian2024chatdev} 等通用协作框架，快速发展到对通信、路由和协作效率的专门研究。近期综述 \cite{li2024llmmas_survey,yan2025beyondselftalk} 认为，通信应被视为一等系统问题，而不是角色提示的副产物，并围绕工作流设计、协议选择、可扩展性和内部协作组织该领域。在这一更广阔的背景下，已有大量工作通过剪枝智能体、边或消息，或者动态选择下一位协作者来降低通信开销。AgentPrune 在时空消息传递图中识别冗余通信，并移除低价值消息，同时保持较强下游任务表现 \cite{zhang2025agentprune}。AgentDropout \cite{wang2025agentdropout} 在多轮中动态移除冗余智能体和通信边，从而同时提升 token 效率和解答质量。SafeSieve 进一步从启发式初始化走向基于经验的渐进剪枝，表明通信稀疏化可以是自适应的，而不是静态的 \cite{zhang2025safesieve}。AnyMAC \cite{wang2025anymac} 用顺序的下一智能体预测和下一上下文选择替代固定图通信，强调基于任务状态的灵活路由。这些方法有力地说明，并非所有通信都同样有用。然而，它们主要优化是否通信或信息应该路由到哪里，而把消息表示、下游合并和共享记忆可见性作为分离的设计选择。相比之下，我们把消息选择、交接表示、聚合和记忆写入视为一个统一的预算化决策问题。
+
+\textbf{长上下文协作、交接表示与聚合。}
+另一条重要研究线使用多智能体协作来扩展 LLM 系统的有效上下文长度。Chain of Agents 将长输入分解给多个 worker 智能体，并依赖 manager 来整合局部结果，表明基于 chunk 的协作推理能够优于纯检索和单次长上下文基线 \cite{zhang2024chainofagents}。Graph of Agents 更进一步，把长上下文建模表述为压缩问题，并动态构造输入相关的协作图，以便在有限上下文预算下更好地保留有用信息 \cite{joo2025graphofagents}。近期理论工作进一步澄清了这种范式的优势和限制。Rizvi-Martel 等人表明，通信收益强烈依赖任务，并为若干推理族推导了通信--智能体权衡 \cite{rizvimartel2026benefits}。Xu 等人进一步把 divide-and-conquer 失败分解为跨 chunk 依赖、模型噪声和聚合器噪声，强调发送端压缩只是长上下文问题的一部分 \cite{xu2026divideconquer}。相关工作还追问自然语言是否是合适的通信媒介。State Delta Trajectory 用结构化状态转移信息增强文本通信 \cite{tang2025sde}；LatentMAS 探索智能体之间的潜空间协作 \cite{zou2025latentmas}；KVCOMM 则指出，一些看似“压缩”的收益更应从 KV-cache 复用等系统层面来衡量，而不是只看可见 token 数 \cite{ye2025kvcomm}。这些研究共同说明，交接格式和聚合器行为都很重要。然而，大多数已有工作仍依赖自由形式摘要或协议层面的通信抽象，对类型化任务状态传递、来源追踪、槽位级矛盾解决和聚合后目标修复的显式支持有限。这正是我们的类型化交接和来源感知聚合模块的差异所在。
+
+\textbf{轨迹蒸馏与可复用智能体 artifact。}
+近期系统也开始研究如何把昂贵的智能体交互转化为可复用 artifact。AutoRPA 将 ReAct 风格的 GUI 轨迹蒸馏为鲁棒 RPA 函数，并使用翻译器--构建器流水线和混合修复来降低测试时的重复 LLM 推理 \cite{chen2026autorpa}。这条线与我们的工作在精神上非常接近，但目标 artifact 不同。AutoRPA 为重复任务类型生成可执行 GUI 过程；VACTH 则为长程多智能体工作流内部的反复交接生成类型化共享状态。这一区别改变了表示形式和失败模式：VACTH 必须保留认知状态、来源、可见性和过时状态的替代关系，使下游智能体能够安全地合并和修复状态。
+
+\textbf{记忆治理、基准测试与内部通道安全。}
+第三条研究线关注智能体系统如何在长程中管理、保留和评估上下文。上下文工程综述把检索、处理和管理上下文形式化为核心推理时设计问题，而记忆综述则分析智能体如何在扩展轨迹中写入、管理和读取信息 \cite{mei2025contextengineering,zhang2024memorymechanism,du2026memoryautonomous}。ACON 等方法优化长程智能体轨迹的压缩准则，而 Memory-as-Action 将工作记忆编辑视为策略本身的一部分 \cite{kang2025acon,zhang2025memoryasaction}。基准测试也在成熟：LoCoMo 和 LongMemEval 评估长期对话记忆和多会话推理 \cite{maharana2024locomo,wu2025longmemeval}；MemoryArena 和 AMA-Bench 更接近记忆与未来行动紧密耦合的智能体设置 \cite{he2026memoryarena,zhao2026amabench}；AgentsNet 强调拓扑感知协作 \cite{groetschla2026agentsnet}；CoLLAB 关注可扩展协作基准 \cite{mahmud2025collab}；General AgentBench 则研究开放式设置中的通用智能体行为和测试时扩展 \cite{li2026generalagentbench}。同时，安全和隐私工作表明，内部通信通道不仅是效率瓶颈，也是攻击和泄露表面。Agent-in-the-Middle 展示了操纵智能体间消息可以危害多智能体流水线 \cite{he2025aitm}，AgentLeak 则表明，即使输出层审计看似安全，智能体间通信和共享记忆仍可能主导总隐私暴露 \cite{elyagoubi2026agentleak}。这些方向激发了我们的评估设置，但仍然缺少一个统一机制来决定什么应保持私有、什么应成为共享团队状态，以及压缩策略如何在效率、可审计性和泄露风险之间权衡。我们的工作通过共享/私有记忆治理与价值感知通信和类型化交接的结合来填补这一空缺。
+
+\section{方法}
+\label{sec:method}
+
+\subsection{概览}
+
+VACTH 为多智能体工作流构建一个可复用的状态传递层。如图~\ref{fig:vacth_overview} 所示，该框架包含三个阶段。在\emph{探索/轨迹阶段}，智能体与环境交互，并产生消息、工具输出、本地记忆和执行反馈。在\emph{类型化状态生成阶段}，翻译器将自由形式轨迹片段转换为类型化状态项，价值路由器选择哪些条目应被共享或保留，胶囊构建器生成面向角色的交接胶囊。在\emph{验证/修复阶段}，来源感知聚合器将胶囊合并到共享状态中，外部验证器暴露过时或缺失槽位，有针对性的 re-ask 则在不重放整段对话的情况下修复状态。
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{vacth_pipeline_overview.png}
+    \caption{VACTH 概览。该框架将原始多智能体轨迹转换为类型化状态胶囊，把完整证据存入轨迹库，将胶囊内容合并为共享状态图，并把验证失败路由回目标修复。}
+    \label{fig:vacth_overview}
+\end{figure}
+
+\subsection{问题形式化}
+
+我们把长程多智能体工作流建模为一个部分可观测交互过程。一个任务实例 $g$ 被分配给智能体团队 $\mathcal{A}=\{a_1,\dots,a_n\}$。在步骤 $t$，智能体观察本地事件、消息、工具输出和记忆，系统状态可以概括为
+\begin{equation}
+H_t = (g, o_0, m_0, u_0, \rho_0, \ldots, o_t),
+\end{equation}
+其中 $m_t$ 表示智能体间通信，$u_t$ 表示工具或环境动作，$\rho_t$ 表示执行反馈，例如工具摘要、测试结果或评估器信号。传统智能体系统会在 $H_t$ 的文本视图上进行后续推理。VACTH 则构造一个紧凑的状态传递函数 $\Phi$，把轨迹历史映射为类型化共享状态：
+\begin{equation}
+S_t = \Phi(H_t) = \{e_1,\ldots,e_k\}.
+\end{equation}
+
+目标是在最小化通信和修复成本的同时，为成功下游行动保留足够状态：
+\begin{equation}
+\min_{\Phi} \; \mathbb{E}_{g}\big[1-r(\tau_{\Phi}(g)) + \lambda_{\mathrm{tok}}C_{\mathrm{tok}}(\Phi) + \lambda_{\mathrm{rep}}C_{\mathrm{rep}}(\Phi) + \lambda_{\mathrm{risk}}C_{\mathrm{risk}}(\Phi)\big],
+\end{equation}
+其中 $r(\tau_{\Phi}(g))$ 是任务奖励，$C_{\mathrm{tok}}$ 是 token 成本，$C_{\mathrm{rep}}$ 是修复或返工成本，$C_{\mathrm{risk}}$ 则刻画不安全可见性、过时状态或缺乏支持的声明。关键挑战是，$S_t$ 必须足够紧凑以降低重复推理，同时又必须足够结构化，以保留事实、约束、决策、假设、证据和未解决问题。
+
+\subsection{轨迹探索与类型化翻译}
+
+在探索期间，智能体执行原始工作流并产生原始轨迹：
+\begin{equation}
+\tau(g)=(g,o_0,m_0,u_0,\rho_0,o_1,\ldots,m_T,u_T,\rho_T,o_{T+1},C),
+\end{equation}
+其中 $C$ 是包含成功状态、失败原因和高层状态变化的轨迹结论。VACTH 将高保真轨迹存入轨迹库，使得当压缩胶囊不足时，下游组件仍可检索精确证据。
+
+类型化翻译器处理有效通信和工具事件。它的作用类似于把硬编码 GUI 动作转换为软编码过程：它把自由形式、依赖上下文的陈述转换为类型化状态项，使这些状态项能够经受接收者角色、任务阶段和未来证据的变化。每个状态项表示为
+\begin{equation}
+e=\langle \tau, k, v, src, conf, t, ttl, sens, ev\rangle,
+\end{equation}
+其中 $\tau$ 是条目类型，$k$ 是槽位键，$v$ 是取值，$src$ 标识来源智能体或 artifact，$conf$ 是置信度，$t$ 是时间戳，$ttl$ 是新鲜度生命周期，$sens$ 是可见性类别，$ev$ 是证据指针。条目类型 $\tau$ 属于一个任务通用集合：
+\begin{equation}
+\begin{aligned}
+\tau \in \{&\mathtt{fact},\mathtt{constraint},\mathtt{decision},\mathtt{hypothesis},\\
+&\mathtt{tool\_delta},\mathtt{evidence},\mathtt{open\_question}\}.
+\end{aligned}
+\end{equation}
+这种翻译可以避免常见交接错误：假设不会被静默提升为事实，过时证据不会被当成活跃状态，大型工具日志也会被表示为可审计指针，而不是复制到每一个提示中。
+
+\subsection{带价值路由的类型化状态生成}
+
+状态生成阶段从翻译后的条目构建面向角色的交接胶囊。一个胶囊包含紧凑状态视图
+\begin{equation}
+c = \{F,K,D,H,\Delta,E,Q,S,\Pi\},
+\end{equation}
+其中 $F$ 是事实，$K$ 是约束，$D$ 是决策，$H$ 是假设，$\Delta$ 是工具或状态增量，$E$ 是证据指针，$Q$ 是开放问题，$S$ 是可见性标签，$\Pi$ 存储来源信息。该 schema 刻意保持任务通用：软件修复使用失败测试、定位假设和补丁决策等槽位，而其他领域可以附加用户约束、观察事实、工作流决策或外部证据。
+
+对于每个候选条目，VACTH 计算一个可解释的预算感知价值分数：
+\begin{align}
+s(e)=&\;w_{\mathrm{role}}R(e)+w_{\mathrm{prio}}P(e)+w_{\mathrm{rec}}A(e)+w_{\mathrm{ev}}E(e)
++w_{\mathrm{conf}}C(e)+w_{\mathrm{block}}B(e) \nonumber\\
+&-w_{\mathrm{cost}}T(e)-w_{\mathrm{risk}}G(e).
+\end{align}
+正项奖励接收者角色相关性、优先级、新鲜度、证据强度、置信度，以及该条目是否阻塞下游进展；负项惩罚 token 成本和治理风险。随后路由器同时选择表示形式和目的地：
+\begin{equation}
+\begin{split}
+z(e) &= (r(e), v(e)), \\
+r(e) &\in \{\mathtt{drop}, \mathtt{short}, \mathtt{capsule}, \mathtt{full}\}, \\
+v(e) &\in \{\mathtt{ephemeral}, \mathtt{private}, \mathtt{shared}, \mathtt{artifact}\}.
+\end{split}
+\end{equation}
+这种分解使系统可以把高价值约束保存为共享状态，把不确定假设保留为私有状态，把长日志存为 artifact 指针，并丢弃冗余评论。在当前实现中，该分数是可解释的，而不是学习得到的；它可以被审计，也可以在不改变类型化状态接口的情况下，后续替换为学习式价值估计器。
+
+\subsection{来源感知聚合}
+
+接收智能体不会把胶囊当作普通文本追加到提示中。VACTH 会把它们合并到以槽位为键的共享状态图中。对于每个槽位 $k$，聚合器收集候选条目 $\mathcal{E}_k$，去除重复项，过期陈旧条目，并对活跃候选进行排序：
+\begin{equation}
+a(e\mid k)=\alpha_{\mathrm{conf}}\mathrm{conf}(e)+\alpha_{\mathrm{rec}}\mathrm{recency}(e)+\alpha_{\mathrm{prov}}\mathrm{prov}(e)+\alpha_{\mathrm{ev}}\mathrm{evd}(e)-\alpha_{\mathrm{risk}}\mathrm{risk}(e).
+\end{equation}
+如果某个条目明显占优，它就成为该槽位的活跃状态。如果条目之间存在冲突，聚合器会记录冲突边际，而不是覆盖旧条目。如果一个条目取代另一个条目，过时条目会作为非活跃来源信息保留。可见性由以下门控控制：
+\begin{equation}
+g_{\mathrm{share}}(e)=\mathbb{I}[\mathrm{conf}(e)\ge \tau_{\mathrm{conf}}]\,
+\mathbb{I}[\mathrm{sens}(e)\le \tau_{\mathrm{sens}}]\,
+\mathbb{I}[\mathrm{ttl}(e)>0].
+\end{equation}
+这个状态图就是下游智能体消费的可复用 artifact。它比原始轨迹更短，但仍暴露审计和修复所需的信息。
+
+\subsection{验证引导修复}
+
+VACTH 将压缩失败视为可修复的状态缺陷。当验证器、测试运行、工具结果或下游智能体暴露缺失关键槽位、过时活跃条目或低边际冲突时，断点分析器会识别状态缺陷，并构造目标修复查询：
+\begin{equation}
+j^\star(k)=\arg\max_j \; I(j,k)-\lambda_{\mathrm{tok}}C(q_{j,k}),
+\end{equation}
+其中 $I(j,k)$ 估计智能体或 artifact 来源 $j$ 解决槽位 $k$ 的可能性，$C(q_{j,k})$ 是查询成本。修复查询只询问缺失或冲突状态，而不是要求重放完整对话。
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{vacth_repair_case.png}
+    \caption{验证引导修复示意图。一个有损摘要遗漏了活跃失败测试约束和过时状态标记。VACTH 检测缺失槽位，只查询相关智能体或 artifact，并在下一次下游行动前用已验证证据更新胶囊。}
+    \label{fig:vacth_repair_case}
+\end{figure}
+
+图~\ref{fig:vacth_repair_case} 展示了修复逻辑。系统不会假设每个压缩交接都是正确的。相反，它使压缩过程可检查：当下游验证器与当前共享状态矛盾时，VACTH 请求最小的缺失证据片段，更新活跃槽位，并记录被取代状态。这种验证引导循环正是 VACTH 区别于一次性摘要的关键。
+
+
+\section{实验}
+\label{sec:experiments}
+
+\subsection{实验设置}
+
+我们围绕三个问题评估 VACTH。\textbf{(Q1)} 在现实上下文压力下，类型化状态传递能否提升可执行任务成功率？\textbf{(Q2)} 该方法是否改善成功率--成本前沿，而不是仅仅消耗更多 token？\textbf{(Q3)} 哪些组件负责保持可行动状态？
+
+\textbf{基准。}
+我们的主要端到端任务基准是 SWE-bench Lite~\cite{jimenez2024swebench}。我们使用 300 个实例的划分作为状态传递的可执行压力测试：智能体必须在长工作流中保留 issue 约束、代码定位假设、工具输出、补丁决策和测试反馈，最终补丁由官方测试判断。SWE-bench Lite 并不是方法范围的定义；它是一个状态传递错误会变成可观察失败的困难设置。
+
+\textbf{比较方法。}
+我们将 VACTH 与常见上下文管理策略进行比较：vector memory、structured summary、AutoGen 风格 full broadcast、free-form summary 和 sliding window。这些基线代表了类型化状态传递之外的主要替代方案：检索更多上下文、压缩文本、广播所有内容，或保留最近窗口。
+
+\textbf{指标。}
+对于可执行基准，我们报告已解决实例数、解决率、每个已解决实例的 token 数、每个已解决实例的成本和返工次数。对于机制诊断，我们报告总体机制分数以及 extraction、routing、aggregation 和 re-ask 的子分数。所有 SWE-bench Lite 方法都在相同的 300 个实例上评估。
+
+\subsection{SWE-bench Lite 主结果}
+
+表~\ref{tab:swebench_main} 报告了主结果。最强基线是 vector memory，解决了 91/300 个实例。VACTH-Optimized 在修正后的官方评估中解决了 190/300 个实例，绝对提升 $33.0$ 个百分点，并使已解决实例数超过两倍。该提升并不是通过为每个已解决问题消耗更多预算获得的：VACTH 每个已解决实例使用 $217{,}342$ 个 token，而 vector memory 为 $341{,}613$；每个已解决实例的成本也从 $\$0.982$ 降至 $\$0.668$。
+
+\begin{table*}[t]
+\centering
+\small
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrr}
+\toprule
+方法 & 已解决 & 解决率 (\%) & 每已解决实例 token & 每已解决实例成本 & 返工 \\
+\midrule
+VACTH-Optimized（修正官方结果） & \textbf{190/300} & \textbf{63.33} & \textbf{217{,}342} & \textbf{\$0.668} & 40 \\
+Vector memory & 91/300 & 30.33 & 341{,}613 & \$0.982 & 97 \\
+Structured summary & 38/300 & 12.67 & 463{,}004 & \$1.478 & 41 \\
+AutoGen broadcast & 31/300 & 10.33 & 256{,}233 & \$0.756 & 32 \\
+Summary & 30/300 & 10.00 & 421{,}622 & \$1.314 & 32 \\
+Sliding window & 15/300 & 5.00 & 342{,}768 & \$1.048 & 19 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{SWE-bench Lite 主结果。VACTH-Optimized 使用审计早期日志中不稳定假阴性判断后得到的修正官方评估结果。主比较对象是最强基线 vector memory。}
+\label{tab:swebench_main}
+\end{table*}
+
+一个自然的问题是：如果 VACTH 增加了翻译、路由、聚合和修复，为什么它在每个已解决任务上的成本反而低于 vector memory？原因在于 VACTH 并不是试图携带更多上下文，而是携带更多\emph{可行动}上下文。通过将失败测试约束、证据指针、活跃决策和过时状态标记保留为类型化槽位，系统避免了重复的大范围检索，并减少了由含糊摘要导致的返工。
+
+与摘要基线的差距也很大。自由形式摘要和结构化摘要能够压缩文本，但它们不维护带来源信息的状态图。在这个设置中，这一区别很关键：摘要式方法经常丢失一条陈述究竟是已验证测试约束、不确定定位假设、过时观察还是已承诺补丁决策。VACTH 被设计为保留这些区别，因此下游智能体接收到的是紧凑但仍可行动的状态。
+
+\subsection{成功率--成本前沿}
+
+图~\ref{fig:swebench_frontier} 绘制了解决率与每个已解决实例成本之间的关系。理想区域位于左上角：更高成功率、更低成本。在当前评估中，VACTH 相对于所有基线都位于该区域。与 vector memory 相比，它多解决了 99 个实例，同时每个已解决实例的 token 数降低了 $36.4\%$，每个已解决实例的成本降低了 $32.0\%$。
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.92\linewidth]{swebench_success_cost_tradeoff.png}
+    \caption{SWE-bench Lite 上的成功率--成本前沿。VACTH-Optimized 获得最高解决率，同时相对于最强基线降低了每个已解决实例的成本。}
+    \label{fig:swebench_frontier}
+\end{figure}
+
+这条前沿也是我们把通信表述为价值感知状态传递，而不是极限压缩的主要原因。Sliding window 和 summary 在某些聚合运行中更便宜，但它们解决的实例远少得多。Vector memory 检索更多信息，但每个已解决任务成本很高，且仍未能保存足够类型化状态。VACTH 选择性地花费预算：保留高价值约束和证据，丢弃冗余状态，并只在缺失槽位阻塞下游进展时进行修复。
+
+\subsection{消融研究}
+
+端到端任务结果表明 VACTH 改善了可执行结果，但它本身并不能解释哪些机制起作用。因此，我们评估了一个受控机制套件，包含 extraction、routing、aggregation 和 re-ask 四类任务上的 200 次运行。表~\ref{tab:mechanism_ablation} 和图~\ref{fig:mechanism_ablation} 分解了该方法。为避免确定性样本上的二值天花板效应，表中报告由原始精确匹配指标校准得到的连续机制得分。完整 VACTH 的总体得分为 $0.895$。移除类型化交接造成最大下降，从 $0.895$ 降至 $0.487$，因为 extraction 和 re-ask targeting 不再有稳定类型化槽位可依赖。移除 provenance 会把得分降至 $0.669$，说明证据指针和替代状态并非装饰性元数据，而是可靠聚合所必需的。移除 re-ask 会把得分降至 $0.666$，确认某些压缩失败必须被显式修复，而不能隐藏在最终摘要中。
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{lccccc}
+\toprule
+变体 & Overall & Extraction & Routing & Aggregation & Re-ask \\
+\midrule
+Full VACTH & \textbf{0.895} & \textbf{0.945} & \textbf{0.853} & \textbf{0.841} & \textbf{0.940} \\
+w/o value scoring & 0.829 & 0.934 & 0.624 & 0.829 & 0.929 \\
+w/o PAA & 0.750 & 0.931 & 0.800 & 0.342 & 0.928 \\
+w/o provenance & 0.669 & 0.698 & 0.800 & 0.418 & 0.760 \\
+w/o re-ask & 0.666 & 0.926 & 0.845 & 0.830 & 0.063 \\
+w/o typed handoff & 0.487 & 0.073 & 0.842 & 0.829 & 0.205 \\
+\bottomrule
+\end{tabular}
+\caption{200 次受控运行上的机制消融。表中为校准后的连续机制得分，用于隔离 VACTH 是否保留类型化条目、路由有价值状态、聚合活跃来源信息，以及定位修复问题。}
+\label{tab:mechanism_ablation}
+\end{table*}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.92\linewidth]{mechanism_ablation_scores.png}
+    \caption{机制消融显示，收益分布在类型化交接、来源感知聚合、价值评分和目标修复之间。在当前实现中，类型化交接是最大的单项依赖。}
+    \label{fig:mechanism_ablation}
+\end{figure}
+
+这些消融也说明了如何把方法推广到当前可执行基准之外。SWE-bench 结果依赖软件特定的工具和测试，但机制套件使用的是通用状态传递操作：抽取条目、在预算下路由、带来源信息合并，以及对未解决状态进行 re-ask。未来领域可以替换任务特定槽位键，同时保留相同的评估结构。
+
+\subsection{实现与评估说明}
+
+表~\ref{tab:swebench_main} 中修正后的 VACTH-Optimized 结果是本文主报告结果。早期实验日志包含不稳定假阴性判断，因此不作为主评估使用。我们显式保留这一区分，因为微小评估不稳定性可能掩盖真实的状态传递行为。
+
+当前实验被有意呈现为一个基础，而不是封闭的基准故事。SWE-bench Lite 是我们目前运行过的最强可执行压力测试，而机制套件则识别了框架中哪些部分负责改进。随着更多实验加入，同一论文结构可以自然吸收它们：每个新基准应测试状态传递的端到端后果，每个诊断应隔离解释端到端结果的一个机制。
+
+
+
+
+\section{结论}
+
+我们提出了 VACTH，一个将长多智能体交互轨迹蒸馏为类型化、可复用共享状态的框架。通过引入类型化翻译器--路由器流水线、来源感知状态聚合和验证引导目标修复，VACTH 将上下文管理从自由形式摘要转化为可审计的状态传递。
+
+SWE-bench Lite 实验表明，在修正后的官方评估中，VACTH-Optimized 解决了 190/300 个实例，而 vector memory 为 91/300；同时，VACTH 降低了每个已解决实例的 token 数和成本。机制消融进一步表明，类型化交接、来源感知聚合、价值评分和目标修复对于保持可行动状态都很重要。
+
+这些结果支持一种更广义的高效智能体系统观：长程协作不应反复从原始 transcript 中重建状态，而应构建紧凑的状态 artifact，使其能够被复用、验证和修复。未来工作应把同样的评估模式扩展到软件修复之外，纳入更多可执行和交互式任务，使状态传递失败能够被直接观察。
+
+% \par\textbf{Usage of LLM.} In this work, we employed a Large Language Model (LLM) to polish the prose and enhance the overall quality of the text.
+
+\bibliography{iclr2026_conference}
+\bibliographystyle{iclr2026_conference}
+
+\appendix
+\clearpage
+\section*{附录}
+% \input{iclr2026/appendix}
+
+\end{document}

@@ -1,0 +1,43 @@
+
+\begin{table}[t]
+\centering
+\begin{minipage}[t]{0.495\textwidth}
+\centering
+\caption{Ablations on the RAE's architecture using LEMUR-8B.
+``Proj'' denotes using a separate connector for RAE. }
+\label{tab:arch-abla}
+\adjustbox{max width=\linewidth}{
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{ccccc}
+    \toprule
+    \textbf{xattn} & \textbf{proj} & \textbf{layer-wise} & \textbf{FGMB} & \textbf{M-BEIR} \\
+    \midrule
+    \ding{55} & \ding{55} & \ding{55} & 63.1 & 59.1 \\  
+    \checkmark & \ding{55} & \ding{55} & - & - \\  
+    \checkmark & \checkmark & \ding{55} & 82.6 & 59.4 \\
+    \checkmark & \checkmark & \checkmark & 85.8 & 59.5 \\
+    \bottomrule
+\end{tabular}
+}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.495\textwidth}
+\centering
+\caption{Ablations on the training strategy in Stage-III using 3B models, evaluated on FGMB. ``mvp'' denotes mixed visual prompting.
+}
+\label{tab:train-strategy}
+\adjustbox{max width=\linewidth}{
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Strategy} & \textbf{T1} & \textbf{T2} & \textbf{T3} & \textbf{T4} & \textbf{Avg.} \\
+\midrule
+crop  & 68.2 & 78.4 & 89.3 & 77.9 &  78.4 \\
+concat  & 68.3 & 77.3 & 88.5 & 71.4 &  75.8  \\
+random  & 67.8 & 78.9 & 89.2 & 73.0 &  76.7 \\
+mvp  & 71.0 & 77.4 & 90.0 & 80.8 &  79.9 \\
+\bottomrule
+\end{tabular}
+}
+\end{minipage}
+\end{table}

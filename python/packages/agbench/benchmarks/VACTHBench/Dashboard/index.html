@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VACTHBench Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-row">
+          <div>
+            <h1>VACTHBench</h1>
+            <p id="results-dir">Loading results...</p>
+          </div>
+          <button id="refresh-button" class="small-button" type="button" title="Reload runs">
+            Reload
+          </button>
+        </div>
+
+        <div class="filters">
+          <input id="run-search" type="search" placeholder="Search task, method, path" />
+          <select id="method-filter" aria-label="Method filter">
+            <option value="">All methods</option>
+          </select>
+        </div>
+
+        <div id="run-list" class="run-list" aria-live="polite"></div>
+      </aside>
+
+      <main class="main">
+        <section class="run-header">
+          <div>
+            <p class="eyebrow" id="run-method">No run selected</p>
+            <h2 id="run-title">Select a run</h2>
+            <p id="run-path" class="muted">Choose a result on the left to inspect messages and files.</p>
+          </div>
+          <div id="status-pill" class="status-pill neutral">Idle</div>
+        </section>
+
+        <section id="metric-strip" class="metric-strip"></section>
+
+        <nav class="tabs" aria-label="Dashboard sections">
+          <button class="tab active" type="button" data-tab="messages">Messages</button>
+          <button class="tab" type="button" data-tab="contexts">Visible Context</button>
+          <button class="tab" type="button" data-tab="tools">Tools</button>
+          <button class="tab" type="button" data-tab="files">Files</button>
+          <button class="tab" type="button" data-tab="json">Result JSON</button>
+        </nav>
+
+        <section id="panel-messages" class="panel active"></section>
+        <section id="panel-contexts" class="panel"></section>
+        <section id="panel-tools" class="panel"></section>
+        <section id="panel-files" class="panel">
+          <div class="file-layout">
+            <div id="file-list" class="file-list"></div>
+            <pre id="file-content" class="code-view">Select a file.</pre>
+          </div>
+        </section>
+        <section id="panel-json" class="panel">
+          <pre id="json-view" class="code-view"></pre>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

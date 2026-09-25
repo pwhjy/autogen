@@ -206,3 +206,24 @@ registry.json
 
 # Claude Code
 .claude/
+
+# Local experiment outputs and downloaded benchmark workspaces
+Results/
+/python/packages/agbench/benchmarks/VACTHBench/data/external/
+
+# macOS metadata and local Studio databases
+._*
+/my-app/*.db
+/my-app/*.db-*
+
+# Paper build products and generated experiment plots
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/iclr2026/*.aux
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/iclr2026/*.bbl
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/iclr2026/*.blg
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/iclr2026/*.fdb_latexmk
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/iclr2026/*.fls
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/iclr2026/*.out
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/iclr2026/*.pdf
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/iclr2026/*.xdv
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/figures/mechanism_ablation_scores.*
+/ICLR2027_Value_Aware_Communication_and_Typed_Handoff_for_Multi_Agent_Context_Compression/figures/swebench_success_cost_tradeoff.*

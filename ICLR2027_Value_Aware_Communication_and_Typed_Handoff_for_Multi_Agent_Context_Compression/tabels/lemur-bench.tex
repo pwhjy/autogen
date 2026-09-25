@@ -1,0 +1,110 @@
+\begin{tabular}{lcccccccccc}
+\toprule
+\multirow{3}{*}{Methods} &
+  % \multicolumn{1}{c}{Size} &
+  \multicolumn{2}{c}{$\text{Task 1 (}q^t \rightarrow c^i$)} &
+  \multicolumn{2}{c}{$\text{Task 2 (}q^i \rightarrow c^t$)} &
+  \multicolumn{2}{c}{$\text{Task 3 (}q^i \rightarrow c^i$)} &
+  \multicolumn{3}{c}{$\text{Task 4 (}q^i, q^t \rightarrow c^i$)} &
+\multirow{3}{*}{Avg.} \\
+\cmidrule(lr){2-3} % 在 Methods 与具体列之间添加分段横线
+\cmidrule(lr){4-5}
+\cmidrule(lr){6-7}
+\cmidrule(lr){8-10}
+& sam & coyo & sam & coyo & xgoods & xnote & vismin & imgdiff & xgoods & \\
+% \cmidrule(lr){2-10} % 为下面的 R@5 行添加一条横线
+\cmidrule(lr){2-3} % 在 Methods 与具体列之间添加分段横线
+\cmidrule(lr){4-5}
+\cmidrule(lr){6-7}
+\cmidrule(lr){8-10}
+& R@5 & R@5 & R@5 & R@5 & R@5 & R@5 & R@1 & R@1 & R@5 & \\
+\midrule
+\multicolumn{10}{c}{\textit{Coarse-grained}} \\
+\midrule
+% CLIP & 36.3 & 64.4 & 44.7 & 70.2 & 48.8 & 54.1 & 50.4 & 45.4 & 63.4 & 53.1 \\
+% EVA-CLIP & 48.5 & 58.7 & 48.9 & 57.4 & 50.0 & 60.7 & 53.6 & 82.2 & 66.6 & 58.5\\
+% SigLIP & 54.3 & 78.5 & 51.3 & 81.6 & 74.8 & 78.4 & 65.7 & 77.3 & 82.8 & 71.6 \\
+% SigLIP2 & 46.3 & 74.2 & 55.9 & 74.7 & 76.9 & 79.0 & 30.5 & 51.6 & 76.7 & 62.9 \\
+% BLIP & 35.3 & 45.8 & 28.4 & 42.1 & 65.4 & 74.8 & 33.2 & 45.3 & 68.8 & 48.8 \\
+% BLIP2 & 30.6 & 38.2 & 35.1 & 48.1 & 38.6 & 54.8 & 57.2 & 68.5 & 63.9 & 48.3\\
+% mmE5 & 50.4 & 55.2 & 42.2 & 51.4 & 44.4 & 59.6 & 80.9 & 75.3 & 94.4 & 61.5\\
+% MM-EMBED & 42.5 & 46.4 & 35.2 & 32.1 & 35.8 & 48.7 & 82.9 & 72.5 & 87.0 & 53.7\\
+% VLM2VEC & 39.8 & 49.9 & 37.3 & 48.5 & 33.7 & 43.7 & 79.3 & 72.2 & 90.1 & 54.9 \\
+% LamRA-Ret & 41.3 & 55.0 & 46.7 & 58.3 & 60.3 & 80.5 & 81.5 & 66.3 & 77.7 & 63.1 \\
+% UniIR-BLIP$_{FF}$ & 31.4 & 39.7 & 19.9 & 32.2 & 24.2 & 36.4 & 77.0 & 52.7 & 71.1 & 42.7 \\
+% UniIR-CLIP$_{SF}$ & 41.0 & 49.2 & 36.4 & 43.7 & 33.7 & 46.3 & 69.5 & 78.3 & 83.8 & 53.5 \\
+
+% \midrule
+% \multicolumn{10}{c}{\textit{Fine-grained}} \\
+% \midrule
+% FG-CLIP & 48.5 & 58.7 & 48.9 & 57.4 & 50.0 & 60.7 & 53.6 & 82.2 & 66.6 & 58.5\\
+% DreamLIP & 37.9 & 63.3 & 45.9 & 71.3 & 49.1 & 49.3 & 55.7 & 54.9 & 69.6 & 55.2\\
+% FineCLIP & 39.4 & 72.9 & 44.2 & 71.4 & 60.5 & 67.7 & 57.2 & 28.9 & 23.7 & 51.8\\
+% FLAIR & -& -& -& -& -& -\\
+% \midrule
+% \multicolumn{10}{c}{\textit{Ours}} \\
+% \midrule
+% Lemur-3B & 58.1 & 83.9 & 70.6 & 84.3 & 88.3 & 91.7 & 83.1 & 78.0 & 81.3 & 79.9 \\
+% Lemur-8B & 69.1 & 88.9 & 86.5 & 87.3 & 92.3 & 93.6 & 83.4 & 81.1 & 90.2 & 85.8 \\
+CLIP & 36.3 & 64.4 & 44.7 & 70.2 & 48.8 & 54.1 & 50.4 & 45.4 & 63.4 & 53.1 \\
+EVA-CLIP & 48.5 & 58.7 & 48.9 & 57.4 & 50.0 & 60.7 & 53.6 & \textbf{82.2} & 66.6 & 58.5\\
+SigLIP & 54.3 & 78.5 & 51.3 & 81.6 & 74.8 & 78.4 & 65.7 & 77.3 & 82.8 & 71.6 \\
+SigLIP2 & 46.3 & 74.2 & 55.9 & 74.7 & 76.9 & 79.0 & 30.5 & 51.6 & 76.7 & 62.9 \\
+BLIP & 35.3 & 45.8 & 28.4 & 42.1 & 65.4 & 74.8 & 33.2 & 45.3 & 68.8 & 48.8 \\
+BLIP2 & 30.6 & 38.2 & 35.1 & 48.1 & 38.6 & 54.8 & 57.2 & 68.5 & 63.9 & 48.3\\
+mmE5 & 50.4 & 55.2 & 42.2 & 51.4 & 44.4 & 59.6 & 80.9 & 75.3 & \textbf{94.4} & 61.5\\
+MM-EMBED & 42.5 & 46.4 & 35.2 & 32.1 & 35.8 & 48.7 & 82.9 & 72.5 & 87.0 & 53.7\\
+VLM2VEC & 39.8 & 49.9 & 37.3 & 48.5 & 33.7 & 43.7 & 79.3 & 72.2 & 90.1 & 54.9 \\
+UniIR-BLIP$_{\text{FF}}$ & 31.4 & 39.7 & 19.9 & 32.2 & 24.2 & 36.4 & 77.0 & 52.7 & 71.1 & 42.7 \\
+UniIR-CLIP$_{\text{SF}}$ & 41.0 & 49.2 & 36.4 & 43.7 & 33.7 & 46.3 & 69.5 & 78.3 & 83.8 & 53.5 \\
+LamRA-Ret & 35.5 & 44.0 & 35.7 & 45.3 & 44.4 & 67.0 & 82.6 & 62.8 & 86.0 & 55.9 \\
+% LamRA-Ret & 41.3 & 55.0 & 46.7 & 58.3 & 60.3 & 80.5 & 81.5 & 66.3 & 77.7 & 63.1 \\
+
+\midrule
+\multicolumn{10}{c}{\textit{Fine-grained}} \\
+\midrule
+FG-CLIP & 48.5 & 58.7 & 48.9 & 57.4 & 50.0 & 60.7 & 53.6 & \textbf{82.2} & 66.6 & 58.5\\
+DreamLIP & 37.9 & 63.3 & 45.9 & 71.3 & 49.1 & 49.3 & 55.7 & 54.9 & 69.6 & 55.2\\
+FineCLIP & 39.4 & 72.9 & 44.2 & 71.4 & 60.5 & 67.7 & 57.2 & 28.9 & 23.7 & 51.8\\
+% FLAIR & -& -& -& -& -& -\\
+\midrule
+\multicolumn{10}{c}{\textit{Ours}} \\
+\midrule
+LEMUR-8B-zs & \underline{59.5} & 80.3 & \underline{72.4} & 80.9 & 85.1 & 86.3 & 81.1 & 70.8 & 92.8 & 78.8 \\
+LEMUR-3B & 58.1 & \underline{83.9} & 70.6 & \underline{84.3} & \underline{88.3} & \underline{91.7} & \underline{83.1} & 78.0 & 81.3 & \underline{79.9} \\
+LEMUR-8B & \textbf{69.1} & \textbf{88.9} & \textbf{86.5} & \textbf{87.3} & \textbf{92.3} & \textbf{93.6} & \textbf{83.4} & \underline{81.1} & \underline{93.6} & \textbf{86.2} \\
+
+\bottomrule
+\end{tabular}
+
+
+% \begin{table}[ht]
+% \centering
+% \begin{adjustbox}{width=\textwidth, keepaspectratio}
+% \begin{tabular}{lcc|cc|cc|ccc|ccc}
+% \toprule
+% \multirow{3}{*}{Methods} &
+%   \multicolumn{2}{c|}{$q^t \rightarrow c^i$} &
+%   \multicolumn{2}{c|}{$q^i \rightarrow c^t$} &
+%   \multicolumn{2}{c|}{$q^i \rightarrow c^i$} &
+%   \multicolumn{3}{c|}{$(q^i, q^t) \rightarrow c^i$} &
+%   \multicolumn{2}{c}{$(q^i, q^t) \rightarrow c^t$} &
+% \multirow{3}{*}{Avg.} \\
+% \cmidrule(lr){2-3} % 在 Methods 与具体列之间添加分段横线
+% \cmidrule(lr){4-5}
+% \cmidrule(lr){6-7}
+% \cmidrule(lr){8-10}
+% \cmidrule(lr){11-12}
+% & dam & fgclip & dam & fgclip & xhsnote & xhsgood & vismin & imgdiff & xhs & xhs & xxx &\\
+% \cmidrule(lr){2-12} % 为下面的 R@5 行添加一条横线
+% & R@5 & R@5 & R@5 & R@5 & R@5 & R@5 & R@1 & R@1 & R@1 & R@5 & R@5 & \\
+% \midrule
+% \multicolumn{11}{c}{\textit{Zero-shot}} \\
+% \midrule
+% lemur & 1 & 1 & 1 & 0 & 1 & 1 & 1 & 1 & & & & \\
+% \bottomrule
+% \end{tabular}
+% \end{adjustbox}
+% \caption{Comparison of various methods on multi-task vision-language benchmarks. The best results are marked in \textcolor{red}{red}, and the second best in \textcolor{blue}{blue}.}
+% \label{tab:lemur-bench}
+% \end{table}

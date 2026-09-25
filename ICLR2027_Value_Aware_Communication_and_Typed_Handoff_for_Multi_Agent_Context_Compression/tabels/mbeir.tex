@@ -1,0 +1,190 @@
+\begin{table*}[!t]
+% \small
+% \setlength{\tabcolsep}{0.1pt}
+\centering
+\caption{Performance on the image-level multimodal retrieval benchmarks from M-BEIR. Although specifically designed for fine-grained retrieval, LEMUR achieves comparable or even better results than strong baselines 
+on image-level retrieval tasks. } 
+\lxcapvs
+\resizebox{\linewidth}{!}{
+
+\begin{tabular}{lc@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}}
+\toprule
+ & \multicolumn{2}{c}{{$q^t \to c^i$}} & \multicolumn{2}{c}{{$q^t \to (c^i, c^t)$}} & \multicolumn{2}{c}{{$q^i \to c^t$}} & {$q^i \to c^i$} & \multicolumn{1}{c}{{$(q^i, q^t) \to c^t$}} & \multicolumn{2}{c}{{$(q^i, q^t) \to c^i$}} & \multicolumn{2}{c}{{$(q^i, q^t) \to (c^i, c^t)$}} & \\
+ \cmidrule(r){2-3} \cmidrule(r){4-5} \cmidrule(r){6-7} \cmidrule(r){8-8} \cmidrule(r){9-9} \cmidrule(r){10-11} \cmidrule(r){12-13} 
+ Methods & COCO & F200K & EDIS & WebQA & COCO & F200K & NIGHTS & InfoSeek & F200IQ & CIRR & OVEN & InfoSeek & Avg. \\
+\cmidrule(r){2-3} \cmidrule(r){4-5} \cmidrule(r){6-7} \cmidrule(r){8-8} \cmidrule(r){9-9} \cmidrule(r){10-11} \cmidrule(r){12-13} 
+& R@5 & R@10 & R@5 & R@5 & R@5 & R@10 & R@5 & R@5 & R@10 & R@5 & R@5 & R@5 & \\
+\midrule
+\multicolumn{14}{c}{\textit{CLIP-based methods}} \\
+\midrule
+CLIP & 61.1 & 6.6 & 43.3 & 45.1 & 79.0  & 7.7 & 26.1 & 20.5 & 7.0 & 13.2 & 38.8 & 26.4 & 31.2   \\
+SigLIP  & 75.7 & \textbf{36.5} & 27.0 & 43.5 & 88.2  & \textbf{34.2} & 28.9 & 25.1 & 14.4 & 22.7 & 41.7 & 27.4 & 38.8  \\
+BLIP  & 74.4 & 15.9 & 26.8 & 20.3 & 83.2  & 19.9 & 27.4 & 10.2 & 2.3 & 10.6 & 27.4 & 16.6 & 27.9  \\
+BLIP2 & 63.8 & 14.0 & 26.9 & 24.5 & 80.0  & 14.2 & 25.4 & 5.5 & 4.4 & 11.8 & 27.3 & 15.8 & 26.1  \\
+
+$\text{UniIR-BLIP}_{\text{FF}}$ & 79.7 & 26.1 & 50.9 & 79.8 & 89.9 & 28.9 & \textbf{33.0} & 22.4 & 29.2 & 52.2 & 55.8 & 33.0 & 48.4  \\
+$\text{UniIR-CLIP}_{\text{SF}}$ & 81.1 & 18.0 & 59.4 & 78.7 & \textbf{92.3} & 18.3 & 32.0 & 27.9 & 24.4 & 44.6 & 67.6 & 48.9 & 49.4  \\
+\midrule
+\multicolumn{14}{c}{\textit{VLM-based methods}} \\
+\midrule
+
+Qwen2-VL-7B & 55.1 & 5.0 & 26.2 & 9.4 & 46.6 & 4.0 & 21.3 & 22.5 & 4.3 & 16.3 & 43.6 & 36.2 & 22.3 \\
+LamRA-Ret & \underline{81.5} & 28.7 & \underline{62.6} & \underline{81.2} & \underline{90.6} & 30.4 & \underline{32.1} & \underline{52.1} & \textbf{33.2} & \underline{53.1} & \underline{76.2} & \underline{63.3} & \underline{57.1} \\
+% LamRA-repli & 81.8 & 29.1 & 86.7 & 62.4 & 81.0 & 90.3 & 29.8 & 32.4 & - & - & 33.6 & 52.5 & - & - \\
+% Lemur+damvit  & 81.5 & 28.4 & 87.1 & 62.1 & 81.1 & 90.4 & 30.4 & 31.8 & 0.0 & 52.1 & 33.3 & 53.0 & 76.7 & 63.6 & 59.4 \\
+\midrule
+\multicolumn{14}{c}{\textit{Ours}} \\
+\midrule
+LEMUR-8B & \textbf{81.6} & \underline{28.9} & \textbf{62.7} & \textbf{81.8} & 90.3 & \underline{30.6} & 31.6 & \textbf{52.7} & \textbf{33.2} & \textbf{53.3} & \textbf{76.4} & \textbf{64.5} & \textbf{57.3}\\
+\bottomrule
+\end{tabular}
+}
+\lxtailvs
+
+\label{tab:mbeir}
+\end{table*}
+
+
+% -----------------------
+% 重置版
+% \begin{table*}[!t]
+% % \small
+% % \setlength{\tabcolsep}{0.1pt}
+% \centering
+% \caption{Performance on the image-level multimodal retrieval benchmark M-BEIR. Although specifically designed for fine-grained retrieval, LEMUR achieves comparable or even better results than strong baselines 
+% on image-level retrieval tasks. } 
+
+% \resizebox{\linewidth}{!}{
+
+% \begin{tabular}{lc@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}}
+% \toprule
+%  & \multicolumn{2}{c}{{$q^t \to c^i$}} & {$q^t \to c^t$} & \multicolumn{2}{c}{{$q^t \to (c^i, c^t)$}} & \multicolumn{2}{c}{{$q^i \to c^t$}} & {$q^i \to c^i$} & \multicolumn{1}{c}{{$(q^i, q^t) \to c^t$}} & \multicolumn{2}{c}{{$(q^i, q^t) \to c^i$}} & \multicolumn{2}{c}{{$(q^i, q^t) \to (c^i, c^t)$}} & \\
+%  \cmidrule(r){2-3} \cmidrule(r){4-4}  \cmidrule(r){5-6} \cmidrule(r){7-8} \cmidrule(r){9-9} \cmidrule(r){10-10} \cmidrule(r){11-12} \cmidrule(r){13-14} 
+%  Methods & COCO & F200K & WebQA & EDIS & WebQA & COCO & F200K & NIGHTS & InfoS & FIQ & CIRR & OVEN & InfoS & Avg. \\
+% \cmidrule(r){2-3} \cmidrule(r){4-4}  \cmidrule(r){5-6} \cmidrule(r){7-8} \cmidrule(r){9-9} \cmidrule(r){10-10} \cmidrule(r){11-12} \cmidrule(r){13-14} 
+% & R@5 & R@10 & R@5 & R@5 & R@5 & R@5 & R@10 & R@5 & R@5 & R@10 & R@5 & R@5 & R@5 & \\
+% \midrule
+% \multicolumn{15}{c}{\textit{CLIP-based methods}} \\
+% \midrule
+% CLIP & 61.1 & 6.6 & 36.2 & 43.3 & 45.1 & 79.0  & 7.7 & 26.1 & 20.5 & 7.0 & 13.2 & 38.8 & 26.4 & 32.5    \\
+% SigLIP  & 75.7 & 36.5 & 39.8 & 27.0 & 43.5 & 88.2  & 34.2 & 28.9 & 25.1 & 14.4 & 22.7 & 41.7 & 27.4 & 37.2  \\
+% BLIP  & 74.4 & 15.9 & 44.9 & 26.8 & 20.3 & 83.2  & 19.9 & 27.4 & 10.2 & 2.3 & 10.6 & 27.4 & 16.6 & 26.8  \\
+% BLIP2 & 63.8 & 14.0 & 38.6 & 26.9 & 24.5 & 80.0  & 14.2 & 25.4 & 5.5 & 4.4 & 11.8 & 27.3 & 15.8 & 24.8  \\
+
+% $\text{UniIR-BLIP}_{\text{FF}}$ & 79.7 & 26.1 & 80.0 & 50.9 & 79.8 & 89.9 & 28.9 & 33.0 & 22.4 & 29.2 & 52.2 & 55.8 & 33.0 & 46.8  \\
+% $\text{UniIR-CLIP}_{\text{SF}}$ & 81.1 & 18.0 & 84.7 & 59.4 & 78.7 & 92.3 & 18.3 & 32.0 & 27.9 & 24.4 & 44.6 & 67.6 & 48.9 & 50.6  \\
+% \midrule
+% \multicolumn{15}{c}{\textit{VLM-based methods}} \\
+% \midrule
+
+% Qwen2-VL-7B & 55.1 & 5.0 & 42.0 & 26.2 & 9.4 & 46.6 & 4.0 & 21.3 & 22.5 & 4.3 & 16.3 & 43.6 & 36.2 & 23.0 \\
+% LamRA-Ret & 81.5 & 28.7 & 86.0 & 62.6 & 81.2 & 90.6 & 30.4 & 32.1 & 52.1 & 33.2 & 53.1 & 76.2 & 63.3 & 59.1 \\
+% % LamRA-repli & 81.8 & 29.1 & 86.7 & 62.4 & 81.0 & 90.3 & 29.8 & 32.4 & - & - & 33.6 & 52.5 & - & - \\
+
+% % Lemur+damvit  & 81.5 & 28.4 & 87.1 & 62.1 & 81.1 & 90.4 & 30.4 & 31.8 & 0.0 & 52.1 & 33.3 & 53.0 & 76.7 & 63.6 & 59.4 \\
+% \midrule
+% \multicolumn{15}{c}{\textit{Ours}} \\
+% \midrule
+% LEMUR-8B & 81.6 & 28.9 & 86.0 & 62.7 & 81.8 & 90.3 & 30.6 & 31.6 & 52.7 & 33.2 & 53.3 & 76.4 & 64.5 & 59.5\\
+% \bottomrule
+% \end{tabular}
+% }
+% \label{tab:mbeir}
+% \end{table*}
+
+% ------------------------
+% v1
+% \begin{table*}[!t]
+% % \small
+% % \setlength{\tabcolsep}{0.1pt}
+% \centering
+% \caption{Performance on the image-level multimodal retrieval benchmark M-BEIR. Although specifically designed for fine-grained retrieval, LEMUR achieves comparable or even better results than strong baselines 
+% on image-level retrieval tasks. } 
+% \lxcapvs
+
+% \resizebox{\linewidth}{!}{
+
+% \begin{tabular}{lc@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}}
+% \toprule
+%  & \multicolumn{2}{c}{{$q^t \to c^i$}} & {$q^t \to c^t$} & \multicolumn{2}{c}{{$q^t \to (c^i, c^t)$}} & \multicolumn{2}{c}{{$q^i \to c^t$}} & {$q^i \to c^i$} & \multicolumn{2}{c}{{$(q^i, q^t) \to c^t$}} & \multicolumn{2}{c}{{$(q^i, q^t) \to c^i$}} & \multicolumn{2}{c}{{$(q^i, q^t) \to (c^i, c^t)$}} & \\
+%  \cmidrule(r){2-3} \cmidrule(r){4-4}  \cmidrule(r){5-6} \cmidrule(r){7-8} \cmidrule(r){9-9} \cmidrule(r){10-11} \cmidrule(r){12-13} \cmidrule(r){14-15} 
+%  Methods & COCO & F200K & WebQA & EDIS & WebQA & COCO & F200K & NIGHTS & OVEN & InfoS & FIQ & CIRR & OVEN & InfoS & Avg. \\
+% \cmidrule(r){2-3} \cmidrule(r){4-4}  \cmidrule(r){5-6} \cmidrule(r){7-8} \cmidrule(r){9-9} \cmidrule(r){10-11} \cmidrule(r){12-13} \cmidrule(r){14-15} 
+% & R@5 & R@10 & R@5 & R@5 & R@5 & R@5 & R@10 & R@5 & R@5 & R@5 & R@10 & R@5 & R@5 & R@5 & \\
+% \midrule
+% \multicolumn{16}{c}{\textit{CLIP-based methods}} \\
+% \midrule
+% CLIP & 61.1 & 6.6 & 36.2 & 43.3 & 45.1 & 79.0  & 7.7 & 26.1 & 24.2 & 20.5 & 7.0 & 13.2 & 38.8 & 26.4 & 32.5    \\
+% SigLIP  & 75.7 & \textbf{{\color{red}36.5}} & 39.8 & 27.0 & 43.5 & 88.2  & \textbf{{\color{blue}34.2}} & 28.9 & 29.7 & 25.1 & 14.4 & 22.7 & 41.7 & 27.4 & 37.2  \\
+% BLIP  & 74.4 & 15.9 & 44.9 & 26.8 & 20.3 & 83.2  & 19.9 & 27.4 & 16.1 & 10.2 & 2.3 & 10.6 & 27.4 & 16.6 & 26.8  \\
+% BLIP2 & 63.8 & 14.0 & 38.6 & 26.9 & 24.5 & 80.0  & 14.2 & 25.4 & 12.2 & 5.5 & 4.4 & 11.8 & 27.3 & 15.8 & 24.8  \\
+
+% $\text{UniIR-BLIP}_{\text{FF}}$ & 79.7 & 26.1 & 80.0 & 50.9 & 79.8 & 89.9 & 28.9 & \textbf{{\color{blue}33.0}} & 41.0 & 22.4 & 29.2 & 52.2 & 55.8 & 33.0 & 46.8  \\
+% $\text{UniIR-CLIP}_{\text{SF}}$ & 81.1 & 18.0 & 84.7 & 59.4 & 78.7 & \textbf{{\color{blue}92.3}} & 18.3 & 32.0 & 45.5 & 27.9 & 24.4 & 44.6 & 67.6 & 48.9 & 50.6  \\
+% \midrule
+% \multicolumn{16}{c}{\textit{VLM-based methods}} \\
+% \midrule
+
+% Qwen2-VL-7B & 55.1 & 5.0 & 42.0 & 26.2 & 9.4 & 46.6 & 4.0 & 21.3 & 21.4 & 22.5 & 4.3 & 16.3 & 43.6 & 36.2 & 23.0 \\
+% LamRA-Ret & \textbf{{\color{blue}81.5}} & 28.7 & \textbf{{\color{blue}86.0}} & \textbf{{\color{blue}62.6}} & \textbf{{\color{blue}81.2}} & 90.6 & 30.4 & 32.1 & 0 & \textbf{{\color{blue}52.1}} & \textbf{{\color{blue}33.2}} & \textbf{{\color{blue}53.1}} & \textbf{{\color{blue}76.2}} & \textbf{{\color{blue}63.3}} & \textbf{{\color{blue}59.1}} \\
+% % LamRA-repli & 81.8 & 29.1 & 86.7 & 62.4 & 81.0 & 90.3 & 29.8 & 32.4 & - & - & 33.6 & 52.5 & - & - \\
+
+% % Lemur+damvit  & 81.5 & 28.4 & 87.1 & 62.1 & 81.1 & 90.4 & 30.4 & 31.8 & 0.0 & 52.1 & 33.3 & 53.0 & 76.7 & 63.6 & 59.4 \\
+% \midrule
+% \multicolumn{16}{c}{\textit{Ours}} \\
+% \midrule
+% % GGG & 81.5 & 28.4 & 62.1 & 81.1 & 90.4 & 31.1 & 31.8 & 52.1 & 33.3 & 53.0 & 76.7 & 63.6 \\
+% LEMUR-8B & {\color{red}81.6} & {\color{red}28.9} & 86.0 & {\color{red}62.7} & {\color{red}81.8} & {\color{green}90.3} & {\color{red}30.6} & {\color{green}31.6} & 0.0 & {\color{red}52.7} & 33.2 & {\color{red}53.3} & {\color{red}76.4} & {\color{red}64.5} & 59.5\\
+% \bottomrule
+% \end{tabular}
+% }
+% \label{tab:mbeir}
+% \lxtailvs
+
+% \end{table*}
+
+
+% v2
+
+% \begin{tabular}{lc@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}c@{\hspace{0.1cm}}}
+% \toprule
+%  & \multicolumn{3}{c}{{$q^t \to c^i$}} & {$q^t \to c^t$} & \multicolumn{2}{c}{{$q^t \to (c^i, c^t)$}} & \multicolumn{3}{c}{{$q^i \to c^t$}} & {$q^i \to c^i$} & \multicolumn{2}{c}{{$(q^i, q^t) \to c^t$}} & \multicolumn{2}{c}{{$(q^i, q^t) \to c^i$}} & \multicolumn{2}{c}{{$(q^i, q^t) \to (c^i, c^t)$}} & \\
+%  \cmidrule(r){2-4} \cmidrule(r){5-5}  \cmidrule(r){6-7} \cmidrule(r){8-10} \cmidrule(r){11-11} \cmidrule(r){12-13} \cmidrule(r){14-15} \cmidrule(r){16-17} 
+%  Methods & VN  & COCO & F200K & WebQA & EDIS & WebQA & VN & COCO & F200K & NIGHTS & OVEN & InfoS & FIQ & CIRR & OVEN & InfoS & Avg. \\
+% \cmidrule(r){2-4} \cmidrule(r){5-5}  \cmidrule(r){6-7} \cmidrule(r){8-10} \cmidrule(r){11-11} \cmidrule(r){12-13} \cmidrule(r){14-15} \cmidrule(r){16-17} 
+% & R@5 & R@5 & R@10 & R@5 & R@5 & R@5 & R@5 & R@5 & R@10 & R@5 & R@5 & R@5 & R@10 & R@5 & R@5 & R@5 & \\
+% \midrule
+% \multicolumn{18}{c}{\textit{Zero-shot}} \\
+% \midrule
+% CLIP-L~\cite{radford2021learning} & \textbf{{\color{blue}43.3}} & 61.1 & 6.6 & 36.2 & 43.3 & 45.1 & 41.3 & 79.0  & 7.7 & 26.1 & 24.2 & 20.5 & 7.0 & 13.2 & 38.8 & 26.4 & 32.5    \\
+% SigLIP~\cite{zhai2023sigmoid} & 30.1 & 75.7 & \textbf{{\color{red}36.5}} & 39.8 & 27.0 & 43.5 & 30.8 & 88.2  & \textbf{{\color{blue}34.2}} & 28.9 & 29.7 & 25.1 & 14.4 & 22.7 & 41.7 & 27.4 & 37.2  \\
+% BLIP~\cite{li2022blip} & 16.4 & 74.4 & 15.9 & 44.9 & 26.8 & 20.3 & 17.2 & 83.2  & 19.9 & 27.4 & 16.1 & 10.2 & 2.3 & 10.6 & 27.4 & 16.6 & 26.8  \\
+% BLIP2~\cite{li2023blip} & 16.7 & 63.8 & 14.0 & 38.6 & 26.9 & 24.5 & 15.0 & 80.0  & 14.2 & 25.4 & 12.2 & 5.5 & 4.4 & 11.8 & 27.3 & 15.8 & 24.8  \\
+% Qwen2-VL-7B~\cite{wang2024qwen2} & 9.3 & 55.1 & 5.0 & 42.0 & 26.2 & 9.4 & 5.4 & 46.6 & 4.0 & 21.3 & 21.4 & 22.5 & 4.3 & 16.3 & 43.6 & 36.2 & 23.0 \\
+% \midrule
+% \multicolumn{18}{c}{\textit{Supervised - Dual Encoder}} \\
+% \midrule
+% $\text{UniIR-BLIP}_{\text{FF}}$~\cite{wei2023uniir} & 23.4 & 79.7 & 26.1 & 80.0 & 50.9 & 79.8 & 22.8 & 89.9 & 28.9 & \textbf{{\color{blue}33.0}} & 41.0 & 22.4 & 29.2 & 52.2 & 55.8 & 33.0 & 46.8  \\
+% $\text{UniIR-CLIP}_{\text{SF}}$~\cite{wei2023uniir} & 42.6 & 81.1 & 18.0 & 84.7 & 59.4 & 78.7 & \textbf{{\color{blue}43.1}} & \textbf{{\color{blue}92.3}} & 18.3 & 32.0 & 45.5 & 27.9 & 24.4 & 44.6 & 67.6 & 48.9 & 50.6  \\
+% \midrule
+% \multicolumn{18}{c}{\textit{Supervised - LMMs}} \\
+% \midrule
+% % \addlinespace[0.2em]
+% % \arrayrulecolor{gray}\hdashline
+% % \specialrule{0em}{0.5pt}{0.5pt} 
+% % \largehrulespace 
+% % LamRA-Ret w/o Pre. & 35.6 & 76.3 & 22.0 & 86.2 & 60.7 & 79.7 & 36.8 & 89.6 & 27.8 & 31.2 & 53.0 & 49.8 & 31.4 & 44.8 & 74.5 & 57.4 & 53.6 \\
+% % LamRA-Ret w/o Inst. & 16.9 & 73.5 & 10.6 & 80.1 & 45.0 & 60.3 & 14.3 & 81.7 & 12.2 & 28.6 & 24.1 & 31.7 & 7.5 & 28.7 & 36.7 & 27.7 & 36.2\\   
+% LamRA-Ret & 41.6 & \textbf{{\color{blue}81.5}} & 28.7 & \textbf{{\color{blue}86.0}} & \textbf{{\color{blue}62.6}} & \textbf{{\color{blue}81.2}} & 39.6 & 90.6 & 30.4 & 32.1 & \textbf{{\color{blue}54.1}} & \textbf{{\color{blue}52.1}} & \textbf{{\color{blue}33.2}} & \textbf{{\color{blue}53.1}} & \textbf{{\color{blue}76.2}} & \textbf{{\color{blue}63.3}} & \textbf{{\color{blue}56.6}} \\
+% LamRA-repli & 41.8 & 81.8 & 29.1 & 86.7 & 62.4 & 81.0 & 39.4 & 90.3 & 29.8 & 32.4 & - & - & 33.6 & 52.5 & - & - \\
+
+% % Lemur-error & 41.3 & 81.4 & 27.5 & 86.0 & 61.6 & 81.4 & 38.8 & 90.1 & 30.2 & 31.7 & - & - & 33.6 & 52.8 & - & - \\
+% Lemur-new & {\color{red}41.1} & {\color{green}81.6} & {\color{green}28.9} & 86.0 & {\color{green}62.7} & {\color{green}81.8} & {\color{red}38.6} & {\color{red}90.3} & {\color{green}30.6} & {\color{red}31.6} & 0.0 & 0.0 & 33.2 & {\color{green}53.3} & 0.0 & {\color{green}64.5} \\
+
+% % Lemurnewbatch & 41.1 & 81.5 & 28.9 & 85.9 & 0.0 & 81.8 & 38.6 & 90.3 & 30.6 & 31.6 & 0.0 & 0.0 & 33.2 & 53.3 & 0.0 & 0.0 \\
+
+% % Lemur & 41.3 & 81.4 & 27.5 & 86.0 & 61.6 & 81.4 & 38.8 & 90.1 & 30.2 & 31.7 & - & - & 33.6 & 52.8 & - & - \\
+% \bottomrule
+%  \end{tabular}
+% }
+

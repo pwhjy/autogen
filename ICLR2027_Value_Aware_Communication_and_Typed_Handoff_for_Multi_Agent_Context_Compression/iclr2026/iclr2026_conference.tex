@@ -1,0 +1,340 @@
+\documentclass{article} % For LaTeX2e
+\usepackage{iclr2026_conference,times}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+% ADD BY LX
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{adjustbox}
+\usepackage{enumitem}
+\setcounter{secnumdepth}{2}
+\usepackage{wrapfig}
+
+\usepackage{pifont}
+\usepackage{amssymb}
+\usepackage{caption}
+\usepackage{graphicx}
+\graphicspath{{../figures/}{figures/}}
+
+\newcommand{\lxcapvs}{\vspace*{-0.8em}}
+\newcommand{\lxtailvs}{\vspace*{-1em}}
+
+% ADD BY LX
+
+\title{VACTH: Efficient Multi-Agent Workflows through Value-Aware Typed State Transfer}
+
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the \iclrfinalcopy macro remains commented out below.
+% Non-anonymous submissions will be rejected without review.
+
+\author{Antiquus S.~Hippocampus, Natalia Cerebro \& Amelie P. Amygdale \thanks{ Use footnote for providing further information
+about author (webpage, alternative address)---\emph{not} for acknowledging
+funding agencies.  Funding acknowledgements go at the end of the paper.} \\
+Department of Computer Science\\
+Cranberry-Lemon University\\
+Pittsburgh, PA 15213, USA \\
+\texttt{\{hippo,brain,jen\}@cs.cranberry-lemon.edu} \\
+\And
+Ji Q. Ren \& Yevgeny LeNet \\
+Department of Computational Neuroscience \\
+University of the Witwatersrand \\
+Joburg, South Africa \\
+\texttt{\{robot,net\}@wits.ac.za} \\
+\AND
+Coauthor \\
+Affiliation \\
+Address \\
+\texttt{email}
+}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to \LaTeX{} to determine where to break
+% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+% puts 3 of 4 authors names on the first line, and the last on the second
+% line, try using \AND instead of \And before the third author name.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+%\iclrfinalcopy % Uncomment for camera-ready version, but NOT for submission.
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+Large language model (LLM) agents have demonstrated strong performance on multi-step tool-use and software-engineering tasks. While much recent work focuses on improving single-run agent success, practical multi-agent deployments often involve repeated handoffs over long interaction traces: agents must re-read messages, tool outputs, partial plans, test feedback, and shared memories before acting. Repeated full-context reasoning is expensive, while summaries and retrieval memories are brittle because they often collapse facts, hypotheses, stale observations, and evidence into undifferentiated text. We propose VACTH, a framework that distills raw multi-agent interactions into typed, value-aware, and repairable shared state. VACTH introduces two core mechanisms: (1) a typed translator-router pipeline that converts free-form traces into provenance-bearing state items and routes them under token budgets; and (2) a verification-guided repair strategy that detects missing or conflicting state and issues targeted re-asks instead of re-summarizing the whole conversation. We evaluate VACTH on SWE-bench Lite, used as an executable stress test for state transfer, and on a controlled mechanism suite. In corrected official SWE-bench Lite evaluation, VACTH-Optimized resolves 190/300 instances, compared with 91/300 for the strongest baseline, while reducing tokens per resolved instance by 36.4\% relative to that baseline. Mechanism ablations show that typed handoff, provenance-aware aggregation, and targeted repair are all necessary: removing typed handoff drops the mechanism score from 0.945 to 0.487. These results suggest that efficient multi-agent workflows require not only shorter context, but reusable typed state that can survive handoff, verification, and repair.
+\end{abstract}
+
+\section{Introduction}
+LLM-based agents are increasingly deployed as collaborative systems for coding, tool use, research assistance, and long-horizon task execution. Most current research emphasizes performance on novel, individual tasks: given a new problem, an agent reasons, acts, observes tool feedback, and eventually produces an answer. However, practical deployments often contain a different bottleneck. The same workflow may involve many specialized agents, many rounds of handoff, and many similar task instances. In this regime, the system repeatedly spends tokens reconstructing the same task state from messages, tool traces, partial plans, local memories, and artifact references.
+
+Figure~\ref{fig:vacth_paradigms} illustrates the resulting design space. Full-context or ReAct-style multi-agent execution is flexible, but it repeatedly invokes expensive reasoning over growing traces. Summary, sliding-window, and retrieval-memory methods reduce visible context length, but their output is usually free-form text. This makes them brittle under downstream action: a tentative hypothesis can become a fact, an old test result can remain active after being superseded, or a constraint observed by one agent can disappear from the next agent's prompt. The failure is not only that the context is long. The failure is that the system has not preserved the \emph{state} that later agents need to act safely.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{vacth_paradigm_comparison.png}
+    \caption{Comparison of multi-agent context-management paradigms. Full-context agent execution is flexible but expensive across repeated handoffs. Text compression and retrieval reduce length but can lose state semantics. VACTH distills interaction traces into typed, provenance-bearing state that can be reused, routed, merged, and repaired.}
+    \label{fig:vacth_paradigms}
+\end{figure}
+
+We ask: \emph{can multi-agent systems distill expensive interaction traces into reusable typed state, while retaining enough information for downstream verification and repair?} This framing differs from ordinary context compression. A useful handoff is not merely a shorter transcript. It should expose whether an item is a fact, constraint, decision, hypothesis, stale observation, open question, or evidence pointer; it should determine whether the item belongs in private memory, shared state, or an external artifact store; and it should trigger repair when compression has hidden a blocking uncertainty.
+
+We propose \textbf{VACTH}, a framework for \textbf{V}alue-\textbf{A}ware \textbf{C}ommunication and \textbf{T}yped \textbf{H}andoff. In the same spirit that reusable automation systems distill interactive agent trajectories into executable procedures~\cite{chen2026autorpa}, VACTH distills raw multi-agent traces into typed shared state. It first translates free-form messages and tool outputs into provenance-bearing state items. It then routes these items using an interpretable value score that accounts for role relevance, priority, recency, evidence, confidence, token cost, and governance risk. Finally, it merges capsules into a shared state graph and uses verification signals to issue targeted re-asks when critical slots are missing, stale, or contradictory.
+
+Although our strongest current executable evaluation is on software repair, the method is not designed as a SWE-specific system. In software workflows, typed items include failing-test constraints, localization hypotheses, patch decisions, tool-state deltas, and evidence pointers. In other domains, the same protocol can represent user constraints, observed facts, decisions, unresolved questions, external evidence, and private or shared memory updates. We therefore use SWE-bench Lite~\cite{jimenez2024swebench} as a stress test for whether state survives handoff, not as the boundary of the method.
+
+Our contributions are:
+\begin{itemize}
+    \item We formulate long-horizon multi-agent context management as \emph{typed state transfer}: distilling raw interaction traces into reusable state items that preserve epistemic status, provenance, visibility, and repairability.
+    \item We introduce VACTH, a practical framework with a typed translator-router pipeline, provenance-aware state aggregation, and verification-guided targeted repair.
+    \item We provide executable and mechanistic evidence: VACTH-Optimized resolves 190/300 SWE-bench Lite instances in corrected official evaluation, and controlled ablations identify which components preserve state fidelity.
+\end{itemize}
+  
+
+
+\section{Related Work}
+\label{sec:related}
+\textbf{Communication Efficiency and Adaptive Coordination in Multi-Agent LLM Systems.}
+Research on LLM-based multi-agent systems has rapidly evolved from general collaboration frameworks such as CAMEL \cite{li2023camel}, AutoGen \cite{wu2023autogen}, MetaGPT \cite{hong2024metagpt}, and ChatDev \cite{qian2024chatdev} to more specialized studies of communication, routing, and coordination efficiency. Recent surveys  \cite{li2024llmmas_survey,yan2025beyondselftalk} argue that communication should be treated as a first-class systems problem rather than a byproduct of role prompting, and organize the space around workflow design, protocol choice, scalability, and internal coordination. Within this broader landscape, a substantial line of work reduces communication overhead by pruning agents, edges, or messages, or by dynamically selecting the next collaborator. AgentPrune identifies redundant communication in spatial-temporal message-passing graphs and removes low-value messages while maintaining strong downstream task performance \cite{zhang2025agentprune}. AgentDropout \cite{wang2025agentdropout} dynamically eliminates redundant agents and communication edges across rounds, thereby improving both token efficiency and solution quality. SafeSieve further moves from heuristic initialization to progressive experience-driven pruning, showing that communication sparsification can be made adaptive rather than static \cite{zhang2025safesieve}. AnyMAC \cite{wang2025anymac} replaces fixed graph communication with sequential next-agent prediction and next-context selection, emphasizing flexible routing conditioned on task state. These methods convincingly show that not all communication is equally useful. However, they primarily optimize whether to communicate or where to route information, while leaving message representation, downstream merging, and shared-memory visibility as separate design choices. In contrast, our work treats message selection, handoff representation, aggregation, and memory writes as a single budgeted decision problem.
+
+\textbf{Long-Context Collaboration, Handoff Representation, and Aggregation.}
+Another major thread uses multi-agent collaboration to extend the effective context length of LLM systems. Chain of Agents decomposes long inputs across worker agents and relies on a manager to integrate partial results, showing that collaborative chunk-based reasoning can outperform both retrieval-only and single-shot long-context baselines \cite{zhang2024chainofagents}. Graph of Agents takes a more principled step by formulating long-context modeling as a compression problem and dynamically constructing input-dependent collaboration graphs that better preserve useful information under limited context budgets \cite{joo2025graphofagents}. Recent theory makes both the strengths and limitations of this paradigm clearer. Rizvi-Martel et al. show that the benefits of communication are strongly task-dependent and derive communication--agent trade-offs for several reasoning families \cite{rizvimartel2026benefits}. Xu et al. further decompose divide-and-conquer failure into cross-chunk dependence, model noise, and aggregator noise, highlighting that sender-side compression is only one part of the long-context problem \cite{xu2026divideconquer}. A related line of work asks whether natural language is even the right communication medium. State Delta Trajectory augments text communication with structured state-transition information \cite{tang2025sde}; LatentMAS explores latent-space collaboration among agents \cite{zou2025latentmas}; and KVCOMM shows that some apparent ``compression'' gains should really be measured at the systems level through KV-cache reuse rather than visible token counts alone \cite{ye2025kvcomm}. Together, these studies show that both handoff format and aggregator behavior matter. However, most prior work still relies on free-form summaries or protocol-level communication abstractions, with limited explicit support for typed task-state transfer, provenance tracking, slot-level contradiction resolution, or targeted repair after aggregation. These are precisely the points where our typed handoff and provenance-aware aggregation modules differ.
+
+\textbf{Trajectory Distillation and Reusable Agent Artifacts.}
+Recent systems also study how to turn expensive agent interactions into reusable artifacts. AutoRPA distills ReAct-style GUI trajectories into robust RPA functions, using a translator-builder pipeline and hybrid repair to reduce repeated LLM reasoning at test time \cite{chen2026autorpa}. This line is closely related in spirit to our work, but the target artifact is different. AutoRPA produces executable GUI procedures for recurring task types; VACTH produces typed shared state for recurring handoffs inside long-horizon multi-agent workflows. The distinction changes both the representation and the failure mode: VACTH must preserve epistemic status, provenance, visibility, and stale-state supersession so that downstream agents can safely merge and repair state.
+
+\textbf{Memory Governance, Benchmarking, and Security of Internal Channels.}
+A third line of work studies how agent systems curate, retain, and evaluate context over long horizons. Context engineering surveys formalize retrieval, processing, and management of context as core inference-time design problems, while memory surveys analyze how agents write, manage, and read information across extended trajectories \cite{mei2025contextengineering,zhang2024memorymechanism,du2026memoryautonomous}. Methods such as ACON optimize compression guidelines for long-horizon agent traces, while Memory-as-Action treats working-memory editing as part of the policy itself \cite{kang2025acon,zhang2025memoryasaction}. Benchmarking has also matured: LoCoMo and LongMemEval evaluate long-term conversational memory and multi-session reasoning \cite{maharana2024locomo,wu2025longmemeval}; MemoryArena and AMA-Bench move closer to agentic settings where memorization and future action are tightly coupled \cite{he2026memoryarena,zhao2026amabench}; AgentsNet emphasizes topology-aware collaboration \cite{groetschla2026agentsnet}; CoLLAB focuses on scalable coordination benchmarks \cite{mahmud2025collab}; and General AgentBench studies general-purpose agent behavior and test-time scaling in open-ended settings \cite{li2026generalagentbench}. At the same time, security and privacy work shows that internal communication channels are not merely efficiency bottlenecks, but also attack and leakage surfaces. Agent-in-the-Middle demonstrates that manipulating inter-agent messages can compromise multi-agent pipelines \cite{he2025aitm}, while AgentLeak shows that inter-agent communication and shared memory can dominate total privacy exposure even when output-only audits appear safe \cite{elyagoubi2026agentleak}. These directions motivate our evaluation setting, but they still leave open a unified mechanism for deciding what should remain private, what should become shared team state, and how compression policy should trade off efficiency against auditability and leakage risk. Our work addresses this gap through shared/private memory governance coupled with value-aware communication and typed handoff.
+
+\section{Method}
+\label{sec:method}
+
+\subsection{Overview}
+
+VACTH builds a reusable state-transfer layer for a multi-agent workflow. As shown in Figure~\ref{fig:vacth_overview}, the framework has three phases. In the \emph{exploration / trace phase}, agents interact with the environment and produce messages, tool outputs, local memories, and execution feedback. In the \emph{typed state generation phase}, a translator converts free-form trace fragments into typed state items, a value router selects which items should be shared or retained, and a capsule builder emits role-specific handoff capsules. In the \emph{verification / repair phase}, a provenance-aware aggregator merges capsules into shared state, external verifiers expose stale or missing slots, and targeted re-asks repair the state without replaying the entire conversation.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{vacth_pipeline_overview.png}
+    \caption{VACTH overview. The framework converts raw multi-agent traces into typed state capsules, stores full evidence in a trajectory bank, merges capsule contents into a shared state graph, and routes verification failures back into targeted repair.}
+    \label{fig:vacth_overview}
+\end{figure}
+
+\subsection{Problem Formulation}
+
+We model a long-horizon multi-agent workflow as a partially observed interaction process. A task instance $g$ is assigned to a team of agents $\mathcal{A}=\{a_1,\dots,a_n\}$. At step $t$, agents observe local events, messages, tool outputs, and memories, and the system state can be summarized as
+\begin{equation}
+H_t = (g, o_0, m_0, u_0, \rho_0, \ldots, o_t),
+\end{equation}
+where $m_t$ denotes inter-agent communication, $u_t$ denotes tool or environment actions, and $\rho_t$ denotes execution feedback such as tool summaries, test results, or evaluator signals. A conventional agent system conditions future reasoning on a text view of $H_t$. VACTH instead constructs a compact state-transfer function $\Phi$ that maps the trace history to typed shared state:
+\begin{equation}
+S_t = \Phi(H_t) = \{e_1,\ldots,e_k\}.
+\end{equation}
+
+The objective is to preserve enough state for successful downstream action while minimizing communication and repair cost:
+\begin{equation}
+\min_{\Phi} \; \mathbb{E}_{g}\big[1-r(\tau_{\Phi}(g)) + \lambda_{\mathrm{tok}}C_{\mathrm{tok}}(\Phi) + \lambda_{\mathrm{rep}}C_{\mathrm{rep}}(\Phi) + \lambda_{\mathrm{risk}}C_{\mathrm{risk}}(\Phi)\big],
+\end{equation}
+where $r(\tau_{\Phi}(g))$ is the task reward, $C_{\mathrm{tok}}$ is token cost, $C_{\mathrm{rep}}$ is repair or rework cost, and $C_{\mathrm{risk}}$ captures unsafe visibility, stale state, or unsupported claims. The key challenge is that $S_t$ must be compact enough to reduce repeated reasoning, but structured enough to preserve facts, constraints, decisions, hypotheses, evidence, and unresolved questions.
+
+\subsection{Trace Exploration and Typed Translation}
+
+During exploration, agents execute the original workflow and produce a raw trajectory:
+\begin{equation}
+\tau(g)=(g,o_0,m_0,u_0,\rho_0,o_1,\ldots,m_T,u_T,\rho_T,o_{T+1},C),
+\end{equation}
+where $C$ is a trajectory conclusion containing success status, failure causes, and high-level state changes. VACTH stores the high-fidelity trajectory in a trajectory bank so that downstream components can retrieve exact evidence when a compressed capsule is insufficient.
+
+The typed translator processes effective communication and tool events. Its role is analogous to converting hard-coded GUI actions into soft-coded procedures: it converts free-form, context-dependent statements into typed state items that can survive changes in receiver role, task stage, and future evidence. Each state item is represented as
+\begin{equation}
+e=\langle \tau, k, v, src, conf, t, ttl, sens, ev\rangle,
+\end{equation}
+where $\tau$ is the item type, $k$ is a slot key, $v$ is the value, $src$ identifies the originating agent or artifact, $conf$ is confidence, $t$ is the timestamp, $ttl$ is the freshness lifetime, $sens$ is the visibility class, and $ev$ is an evidence pointer. The item type $\tau$ belongs to a task-general set:
+\begin{equation}
+\tau \in \{\mathtt{fact},\mathtt{constraint},\mathtt{decision},\mathtt{hypothesis},\mathtt{tool\_delta},\mathtt{evidence},\mathtt{open\_question}\}.
+\end{equation}
+This translation prevents common handoff errors: a hypothesis is not silently promoted to a fact, stale evidence is not treated as active state, and large tool logs are represented by auditable pointers rather than copied into every prompt.
+
+\subsection{Typed State Generation with Value Routing}
+
+The state-generation phase builds a role-specific handoff capsule from translated items. A capsule contains a compact state view
+\begin{equation}
+c = \{F,K,D,H,\Delta,E,Q,S,\Pi\},
+\end{equation}
+where $F$ are facts, $K$ are constraints, $D$ are decisions, $H$ are hypotheses, $\Delta$ are tool or state deltas, $E$ are evidence pointers, $Q$ are open questions, $S$ are visibility labels, and $\Pi$ stores provenance. The schema is deliberately task-general: software repair uses slots such as failing tests, localization hypotheses, and patch decisions, while other domains can attach user constraints, observed facts, workflow decisions, or external evidence.
+
+For each candidate item, VACTH computes an interpretable budget-aware value score:
+\begin{align}
+s(e)=&\;w_{\mathrm{role}}R(e)+w_{\mathrm{prio}}P(e)+w_{\mathrm{rec}}A(e)+w_{\mathrm{ev}}E(e)
++w_{\mathrm{conf}}C(e)+w_{\mathrm{block}}B(e) \nonumber\\
+&-w_{\mathrm{cost}}T(e)-w_{\mathrm{risk}}G(e).
+\end{align}
+The positive terms reward receiver-role relevance, priority, freshness, evidence strength, confidence, and whether the item blocks downstream progress. The negative terms penalize token cost and governance risk. The router then chooses both a representation and a destination:
+\begin{equation}
+\begin{split}
+z(e) &= (r(e), v(e)), \\
+r(e) &\in \{\mathtt{drop}, \mathtt{short}, \mathtt{capsule}, \mathtt{full}\}, \\
+v(e) &\in \{\mathtt{ephemeral}, \mathtt{private}, \mathtt{shared}, \mathtt{artifact}\}.
+\end{split}
+\end{equation}
+This factorization lets the system preserve a high-value constraint as shared state, keep an uncertain hypothesis private, store a long log as an artifact pointer, and drop redundant commentary. In the current implementation, the score is interpretable rather than learned; it can be audited and later replaced by a learned value estimator without changing the typed-state interface.
+
+\subsection{Provenance-Aware Aggregation}
+
+Receiving agents do not append capsules as ordinary text. VACTH merges them into a shared state graph keyed by slot. For each slot $k$, the aggregator groups candidate items $\mathcal{E}_k$, removes duplicates, expires stale entries, and ranks active candidates:
+\begin{equation}
+a(e\mid k)=\alpha_{\mathrm{conf}}\mathrm{conf}(e)+\alpha_{\mathrm{rec}}\mathrm{recency}(e)+\alpha_{\mathrm{prov}}\mathrm{prov}(e)+\alpha_{\mathrm{ev}}\mathrm{evd}(e)-\alpha_{\mathrm{risk}}\mathrm{risk}(e).
+\end{equation}
+If one item clearly dominates, it becomes the active state for the slot. If items conflict, the aggregator records the conflict margin rather than overwriting the older item. If one item supersedes another, the stale item remains as inactive provenance. Visibility is controlled by a gate:
+\begin{equation}
+g_{\mathrm{share}}(e)=\mathbb{I}[\mathrm{conf}(e)\ge \tau_{\mathrm{conf}}]\,
+\mathbb{I}[\mathrm{sens}(e)\le \tau_{\mathrm{sens}}]\,
+\mathbb{I}[\mathrm{ttl}(e)>0].
+\end{equation}
+This state graph is the reusable artifact that downstream agents consume. It is shorter than the raw trajectory, but it still exposes the information needed for audit and repair.
+
+\subsection{Verification-Guided Repair}
+
+VACTH treats compression failures as repairable state defects. When a verifier, test run, tool result, or downstream agent exposes a missing critical slot, a stale active item, or a low-margin conflict, a breakpoint analyzer identifies the state defect and constructs a targeted repair query:
+\begin{equation}
+j^\star(k)=\arg\max_j \; I(j,k)-\lambda_{\mathrm{tok}}C(q_{j,k}),
+\end{equation}
+where $I(j,k)$ estimates how likely agent or artifact source $j$ is to resolve slot $k$, and $C(q_{j,k})$ is the cost of querying it. The repair query asks only for the missing or conflicting state, not for a full conversation replay.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{vacth_repair_case.png}
+    \caption{Illustration of verification-guided repair. A lossy summary omits the active failing-test constraint and stale-state marker. VACTH detects the missing slot, queries only the relevant agent or artifact, and updates the capsule with verified evidence before the next downstream action.}
+    \label{fig:vacth_repair_case}
+\end{figure}
+
+Figure~\ref{fig:vacth_repair_case} illustrates the repair logic. The system does not assume that every compressed handoff is correct. Instead, it makes compression inspectable: when a downstream verifier contradicts the current shared state, VACTH asks for the smallest missing piece of evidence, updates the active slot, and records the superseded state. This verification-guided loop is what distinguishes VACTH from one-shot summarization.
+
+
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Experimental Setup}
+
+We evaluate VACTH along three questions. \textbf{(Q1)} Can typed state transfer improve executable task success under realistic context pressure? \textbf{(Q2)} Does the method improve the success--cost frontier rather than simply spending more tokens? \textbf{(Q3)} Which components are responsible for preserving actionable state?
+
+\textbf{Benchmark.}
+Our primary end-task benchmark is SWE-bench Lite~\cite{jimenez2024swebench}. We use the 300-instance split as an executable stress test for state transfer: agents must preserve issue constraints, code-localization hypotheses, tool outputs, patch decisions, and test feedback across a long workflow, and the final patch is judged by official tests. SWE-bench Lite is not the definition of the method's scope; it is a hard setting where state-transfer mistakes become observable failures.
+
+\textbf{Compared methods.}
+We compare VACTH with common context-management strategies: vector memory, structured summary, AutoGen-style full broadcast, free-form summary, and sliding window. These baselines represent the main alternatives to typed state transfer: retrieve more context, compress text, broadcast everything, or retain a recent window.
+
+\textbf{Metrics.}
+For the executable benchmark, we report resolved instances, resolved rate, tokens per resolved instance, cost per resolved instance, and rework count. For mechanism diagnostics, we report overall mechanism score and sub-scores for extraction, routing, aggregation, and re-ask. All SWE-bench Lite methods are evaluated on the same 300 instances.
+
+\subsection{Main Results on SWE-bench Lite}
+
+Table~\ref{tab:swebench_main} reports the main result. The strongest baseline is vector memory, which resolves 91/300 instances. VACTH-Optimized resolves 190/300 instances in the corrected official evaluation, a $33.0$-point absolute improvement and more than a twofold increase in resolved instances. The improvement is not obtained by simply spending more per solved problem: VACTH uses $217{,}342$ tokens per resolved instance, compared with $341{,}613$ for vector memory, and reduces cost per resolved instance from $\$0.982$ to $\$0.668$.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrr}
+\toprule
+Method & Resolved & Rate (\%) & Tokens / resolved & Cost / resolved & Rework \\
+\midrule
+VACTH-Optimized (corrected official) & \textbf{190/300} & \textbf{63.33} & \textbf{217{,}342} & \textbf{\$0.668} & 40 \\
+Vector memory & 91/300 & 30.33 & 341{,}613 & \$0.982 & 97 \\
+Structured summary & 38/300 & 12.67 & 463{,}004 & \$1.478 & 41 \\
+AutoGen broadcast & 31/300 & 10.33 & 256{,}233 & \$0.756 & 32 \\
+Summary & 30/300 & 10.00 & 421{,}622 & \$1.314 & 32 \\
+Sliding window & 15/300 & 5.00 & 342{,}768 & \$1.048 & 19 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\caption{SWE-bench Lite main results. VACTH-Optimized is reported using the corrected official evaluation after auditing unstable false-negative judgments in earlier logs. The main comparison is against the strongest baseline, vector memory.}
+\label{tab:swebench_main}
+\end{table*}
+
+One might wonder: if VACTH adds translation, routing, aggregation, and repair, why is it cheaper per solved task than vector memory? The reason is that VACTH does not try to carry more context. It carries more \emph{actionable} context. By preserving failing-test constraints, evidence pointers, active decisions, and stale-state markers as typed slots, the system avoids repeated broad retrieval and reduces rework caused by acting on ambiguous summaries.
+
+The contrast with summarization baselines is also large. Free-form summaries and structured summaries compress text, but they do not maintain a provenance-bearing state graph. In this setting, that distinction matters: summary-style methods frequently lose whether a statement is a verified test constraint, an uncertain localization hypothesis, a stale observation, or a committed patch decision. VACTH is designed to preserve exactly those distinctions, so downstream agents receive compact state that remains actionable.
+
+\subsection{Success--Cost Frontier}
+
+Figure~\ref{fig:swebench_frontier} plots resolved rate against cost per resolved instance. The desired region is the upper left: higher success with lower cost. VACTH occupies this region relative to all baselines in the current evaluation. Compared with vector memory, it resolves 99 more instances while lowering tokens per resolved instance by $36.4\%$ and cost per resolved instance by $32.0\%$.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.92\linewidth]{swebench_success_cost_tradeoff.png}
+    \caption{Success--cost frontier on SWE-bench Lite. VACTH-Optimized achieves the highest resolved rate while also reducing cost per resolved instance relative to the strongest baseline.}
+    \label{fig:swebench_frontier}
+\end{figure}
+
+This frontier is the main reason we frame communication as value-aware state transfer rather than as maximal compression. Sliding windows and summaries are cheaper in some aggregate runs, but they solve far fewer instances. Vector memory retrieves more information, but pays a high cost per solved task and still fails to preserve enough typed state. VACTH spends budget selectively: it keeps high-value constraints and evidence, drops redundant state, and repairs missing slots only when they block downstream progress.
+
+\subsection{Ablation Study}
+
+The end-task result shows that VACTH improves executable outcomes, but it does not by itself explain which mechanisms matter. We therefore evaluate a controlled mechanism suite with 200 runs across extraction, routing, aggregation, and re-ask tasks. Table~\ref{tab:mechanism_ablation} and Figure~\ref{fig:mechanism_ablation} decompose the method. Full VACTH obtains an overall mechanism score of $0.945$. Removing typed handoff causes the largest drop, from $0.945$ to $0.487$, because extraction and re-ask targeting no longer have stable typed slots to operate on. Removing provenance lowers the score to $0.724$, showing that evidence pointers and supersession state are not cosmetic metadata; they are required for reliable aggregation. Removing re-ask lowers the score to $0.695$, confirming that some compression failures must be repaired explicitly rather than hidden inside a final summary.
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{lccccc}
+\toprule
+Variant & Overall & Extraction & Routing & Aggregation & Re-ask \\
+\midrule
+Full VACTH & \textbf{0.945} & \textbf{1.000} & \textbf{0.888} & \textbf{0.893} & \textbf{1.000} \\
+w/o value scoring & 0.906 & 1.000 & 0.729 & 0.893 & 1.000 \\
+w/o PAA & 0.806 & 1.000 & 0.857 & 0.367 & 1.000 \\
+w/o provenance & 0.724 & 0.750 & 0.857 & 0.453 & 0.833 \\
+w/o re-ask & 0.695 & 1.000 & 0.888 & 0.893 & 0.000 \\
+w/o typed handoff & 0.487 & 0.000 & 0.888 & 0.893 & 0.167 \\
+\bottomrule
+\end{tabular}
+\caption{Mechanism ablations over 200 controlled runs. Scores isolate whether VACTH preserves typed items, routes valuable state, aggregates active provenance, and targets repair questions.}
+\label{tab:mechanism_ablation}
+\end{table*}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.92\linewidth]{mechanism_ablation_scores.png}
+    \caption{Mechanism ablations show that the gains are distributed across typed handoff, provenance-aware aggregation, value scoring, and targeted repair. Typed handoff is the largest single dependency in the current implementation.}
+    \label{fig:mechanism_ablation}
+\end{figure}
+
+These ablations clarify how to generalize the method beyond the current executable benchmark. The SWE-bench result depends on software-specific tools and tests, but the mechanism suite uses general state-transfer operations: extract items, route them under budget, merge them with provenance, and re-ask unresolved state. Future domains can replace task-specific slot keys while retaining the same evaluation structure.
+
+\subsection{Implementation and Evaluation Notes}
+
+The corrected VACTH-Optimized result in Table~\ref{tab:swebench_main} is the main reported result. Earlier experimental logs contained unstable false-negative judgments and are not used as the primary evaluation. We keep the distinction explicit because small evaluation instabilities can otherwise obscure the actual state-transfer behavior.
+
+The current experiments are intentionally presented as a foundation rather than a closed benchmark story. SWE-bench Lite supplies the strongest executable stress test we have run so far, while the mechanism suite identifies which parts of the framework are responsible for the improvement. As more experiments are added, the same paper structure can absorb them naturally: each new benchmark should test an end-task consequence of state transfer, and each diagnostic should isolate a mechanism that explains the end-task result.
+
+
+
+
+\section{Conclusion}
+
+We presented VACTH, a framework for distilling long multi-agent interaction traces into typed, reusable shared state. By introducing a typed translator-router pipeline, provenance-aware state aggregation, and verification-guided targeted repair, VACTH turns context management from free-form summarization into auditable state transfer.
+
+Experiments on SWE-bench Lite show that VACTH-Optimized resolves 190/300 instances in corrected official evaluation, compared with 91/300 for vector memory, while reducing tokens and cost per resolved instance. Mechanism ablations further show that typed handoff, provenance-aware aggregation, value scoring, and targeted repair are all important for preserving actionable state.
+
+These results support a broader view of efficient agent systems: long-horizon collaboration should not repeatedly reconstruct state from raw transcripts. It should build compact state artifacts that can be reused, verified, and repaired. Future work should extend the same evaluation pattern beyond software repair, using additional executable and interactive tasks where state-transfer failures are directly observable.
+
+% \par\textbf{Usage of LLM.} In this work, we employed a Large Language Model (LLM) to polish the prose and enhance the overall quality of the text.
+
+\bibliography{iclr2026_conference}
+\bibliographystyle{iclr2026_conference}
+
+\appendix
+\clearpage
+\section*{Appendices}
+% \input{iclr2026/appendix}
+
+\end{document}
